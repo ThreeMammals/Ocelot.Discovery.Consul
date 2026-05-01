@@ -1,4 +1,4 @@
-﻿namespace Ocelot.Provider.Consul;
+﻿namespace Ocelot.Discovery.Consul;
 
 public class ConsulRegistryConfiguration // TODO Inherit from ServiceProviderConfiguration ?
 {

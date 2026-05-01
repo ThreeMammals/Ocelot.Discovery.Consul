@@ -8,7 +8,7 @@ using Ocelot.Infrastructure.Extensions;
 using Ocelot.Middleware;
 using Ocelot.Responses;
 
-namespace Ocelot.Provider.Consul;
+namespace Ocelot.Discovery.Consul;
 
 public static class ConsulMiddlewareConfigurationProvider
 {

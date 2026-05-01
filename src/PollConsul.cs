@@ -2,7 +2,7 @@
 using Ocelot.ServiceDiscovery.Providers;
 using Ocelot.Values;
 
-namespace Ocelot.Provider.Consul;
+namespace Ocelot.Discovery.Consul;
 
 public sealed class PollConsul : IServiceDiscoveryProvider
 {

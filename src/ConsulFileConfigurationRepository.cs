@@ -5,11 +5,10 @@ using Ocelot.Configuration;
 using Ocelot.Configuration.File;
 using Ocelot.Configuration.Repository;
 using Ocelot.Logging;
-using Ocelot.Provider.Consul.Interfaces;
 using Ocelot.Responses;
 using System.Text;
 
-namespace Ocelot.Provider.Consul;
+namespace Ocelot.Discovery.Consul;
 
 public class ConsulFileConfigurationRepository : IFileConfigurationRepository
 {

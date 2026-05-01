@@ -1,10 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Ocelot.Infrastructure.Extensions;
 using Ocelot.Logging;
-using Ocelot.Provider.Consul.Interfaces;
 using Ocelot.Values;
 
-namespace Ocelot.Provider.Consul;
+namespace Ocelot.Discovery.Consul;
 
 public class DefaultConsulServiceBuilder : IConsulServiceBuilder
 {

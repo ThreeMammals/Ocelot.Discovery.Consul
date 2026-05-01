@@ -2,10 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Ocelot.Configuration;
 using Ocelot.Logging;
-using Ocelot.Provider.Consul.Interfaces;
 using Ocelot.ServiceDiscovery.Providers;
 
-namespace Ocelot.Provider.Consul;
+namespace Ocelot.Discovery.Consul;
 
 /// <summary>
 /// TODO It must be refactored converting to real factory-class and add to DI.
@@ -17,7 +16,7 @@ namespace Ocelot.Provider.Consul;
 public static class ConsulProviderFactory // TODO : IServiceDiscoveryProviderFactory
 {
     /// <summary>String constant used for provider type definition.</summary>
-    public const string PollConsul = nameof(Provider.Consul.PollConsul);
+    public const string PollConsul = nameof(PollConsul);
 
     private static readonly List<PollConsul> ServiceDiscoveryProviders = new(); // TODO It must be singleton service in DI-container
 #if NET9_0_OR_GREATER

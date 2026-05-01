@@ -1,9 +1,8 @@
 ﻿using Ocelot.Logging;
-using Ocelot.Provider.Consul.Interfaces;
 using Ocelot.ServiceDiscovery.Providers;
 using Ocelot.Values;
 
-namespace Ocelot.Provider.Consul;
+namespace Ocelot.Discovery.Consul;
 
 public class Consul : IServiceDiscoveryProvider
 {

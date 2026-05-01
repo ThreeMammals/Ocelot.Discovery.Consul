@@ -1,6 +1,6 @@
 ﻿using Ocelot.Values;
 
-namespace Ocelot.Provider.Consul.Interfaces;
+namespace Ocelot.Discovery.Consul;
 
 public interface IConsulServiceBuilder
 {

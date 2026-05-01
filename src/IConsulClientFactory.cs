@@ -1,4 +1,4 @@
-﻿namespace Ocelot.Provider.Consul.Interfaces;
+﻿namespace Ocelot.Discovery.Consul;
 
 public interface IConsulClientFactory
 {
