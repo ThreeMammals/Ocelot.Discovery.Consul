@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <CodeAnalysisRuleSet>..\..\codeanalysis.ruleset</CodeAnalysisRuleSet>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+    <IncludeSymbols>True</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <NoWarn>CS1591</NoWarn>
+    <!--Package properties-->
+    <Version>25.0.0-beta.1</Version>
+    <PackageId>Ocelot.Discovery.Consul</PackageId>
+    <PackageDescription>Provides Ocelot extensions to use Consul service discovery.</PackageDescription>
+    <PackageReleaseNotes>https://github.com/ThreeMammals/Ocelot.Discovery.Consul/releases</PackageReleaseNotes>
+    <PackageTags>ocelot;discovery;service-discovery;consul</PackageTags>
+    <PackageIcon>ocelot_icon.png</PackageIcon>
+    <PackageIconUrl>https://raw.githubusercontent.com/ThreeMammals/Ocelot/assets/images/ocelot_icon_128x128.png</PackageIconUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageProjectUrl>https://github.com/ThreeMammals/Ocelot/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ThreeMammals/Ocelot.Discovery.Consul.git</RepositoryUrl>
+    <Authors>Tom Pallister, Raman Maksimchuk, Guillaume Gnaegi</Authors>
+    <Company>Three Mammals</Company>
+    <Product>Ocelot Gateway</Product>
+    <Copyright>© 2026 Three Mammals. MIT licensed OSS</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\LICENSE" Pack="true" PackagePath="\" Link="package\LICENSE" />
+    <None Include="..\ocelot_icon.png" Pack="true" PackagePath="\" Link="package\ocelot_icon.png" />
+    <None Include="..\README.md" Pack="true" PackagePath="\" Link="package\README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Consul" Version="1.8.0" />
+  </ItemGroup>
+</Project>
