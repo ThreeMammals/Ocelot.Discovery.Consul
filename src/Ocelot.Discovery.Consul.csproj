@@ -32,7 +32,10 @@
     <None Include="..\README.md" Pack="true" PackagePath="\" Link="package\README.md" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Ocelot" Version="25.0.0-beta.2" />
+    <!--<PackageReference Include="Ocelot" Version="25.0.0-beta.2" />-->
     <PackageReference Include="Consul" Version="1.8.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Ocelot\src\Ocelot\Ocelot.csproj" />
   </ItemGroup>
 </Project>

@@ -56,6 +56,7 @@ public static class OcelotBuilderExtensions
         builder.Services
             .AddSingleton(ConsulMiddlewareConfigurationProvider.Get)
             .AddHostedService<FileConfigurationPoller>()
+            .RemoveAll<IFileConfigurationRepository>()
             .AddSingleton<IFileConfigurationRepository, ConsulFileConfigurationRepository>();
         return builder;
     }
