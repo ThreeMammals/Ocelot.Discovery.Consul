@@ -4,11 +4,12 @@ using Moq;
 using Newtonsoft.Json;
 using Ocelot.Logging;
 using System.Runtime.CompilerServices;
-using ConsulProvider = Ocelot.Discovery.Consul.Consul;
 
 namespace Ocelot.Discovery.Consul.Acceptance;
 
-// [Collection(nameof(SequentialTests))]
+// Tests were copied from old deleted Ocelot.Provider.Consul repo (see 1st commit), thus impossible to recover dev history.
+[Trait("Commit", "11a2d13")] // https://github.com/ThreeMammals/Ocelot/commit/11a2d13f180a0444d9cb04fd95f87be6489e09d3 on Jan 7, 2019
+[Trait("Commit", "34cb3eb")] // https://github.com/ThreeMammals/Ocelot/commit/34cb3ebf9768ac8cd8d2c75139da2123e23fdba4 on May 27, 2024
 public class ConsulIntegrationTests : AcceptanceSteps
 {
     private readonly int _consulPort;
@@ -21,7 +22,7 @@ public class ConsulIntegrationTests : AcceptanceSteps
     private IConsulClientFactory _clientFactory;
     private IConsulServiceBuilder _serviceBuilder;
     private ConsulRegistryConfiguration _config;
-    private ConsulProvider _provider;
+    private Consul _provider;
     private string _receivedToken;
 
     public ConsulIntegrationTests()
@@ -33,7 +34,7 @@ public class ConsulIntegrationTests : AcceptanceSteps
         _factory = new Mock<IOcelotLoggerFactory>();
         _logger = new Mock<IOcelotLogger>();
         _contextAccessor = new Mock<IHttpContextAccessor>();
-        _factory.Setup(x => x.CreateLogger<ConsulProvider>()).Returns(_logger.Object);
+        _factory.Setup(x => x.CreateLogger<Consul>()).Returns(_logger.Object);
         _factory.Setup(x => x.CreateLogger<PollConsul>()).Returns(_logger.Object);
         _factory.Setup(x => x.CreateLogger<DefaultConsulServiceBuilder>()).Returns(_logger.Object);
     }
@@ -46,7 +47,7 @@ public class ConsulIntegrationTests : AcceptanceSteps
         _contextAccessor.SetupGet(x => x.HttpContext).Returns(context);
         _clientFactory = new ConsulClientFactory();
         _serviceBuilder = new DefaultConsulServiceBuilder(_contextAccessor.Object, _clientFactory, _factory.Object);
-        _provider = new ConsulProvider(_config, _factory.Object, _clientFactory, _serviceBuilder);
+        _provider = new Consul(_config, _factory.Object, _clientFactory, _serviceBuilder);
     }
 
     [Fact]
@@ -73,7 +74,7 @@ public class ConsulIntegrationTests : AcceptanceSteps
         _consulServiceEntries.Add(service1.ToServiceEntry());
         GivenThereIsAFakeConsulServiceDiscoveryProvider();
         var config = new ConsulRegistryConfiguration(_consulScheme, _consulHost, _consulPort, nameof(Should_use_token), token);
-        _provider = new ConsulProvider(config, _factory.Object, _clientFactory, _serviceBuilder);
+        _provider = new Consul(config, _factory.Object, _clientFactory, _serviceBuilder);
 
         // Act
         var actual = await _provider.GetAsync();

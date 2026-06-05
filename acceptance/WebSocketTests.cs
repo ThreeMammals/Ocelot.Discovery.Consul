@@ -1,20 +1,21 @@
 ﻿using Consul;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using Ocelot.Configuration.File;
-using Ocelot.DependencyInjection;
-using Ocelot.Testing.Steps;
+using Ocelot.LoadBalancer.Balancers;
 using TestStack.BDDfy;
 
 namespace Ocelot.Discovery.Consul.Acceptance;
 
-public sealed class ConsulWebSocketTests : WebSocketsSteps
+public sealed class WebSocketTests : ConsulWebSocketsSteps
 {
     private readonly List<ServiceEntry> _serviceEntries = [];
 
     [Fact]
-    public void ShouldProxyWebsocketInputToDownstreamServiceAndUseServiceDiscoveryAndLoadBalancer()
+    [Trait("Feat", "212")] // https://github.com/ThreeMammals/Ocelot/issues/212
+    [Trait("PR", "273")] // https://github.com/ThreeMammals/Ocelot/pull/273
+    [Trait("Release", "5.3.0")] // https://github.com/ThreeMammals/Ocelot/releases/tag/5.3.0
+    [Trait("Commit", "463a7bd")] // https://github.com/ThreeMammals/Ocelot/commit/463a7bdab4652762d14779e7e3f62a207c3d421c
+    public void Should_proxy_websocket_input_to_downstream_service_and_use_service_discovery_and_load_balancer()
     {
         var downstreamPort = PortFinder.GetRandomPort();
         var downstreamHost = "localhost";
@@ -22,7 +23,7 @@ public sealed class ConsulWebSocketTests : WebSocketsSteps
         var secondDownstreamPort = PortFinder.GetRandomPort();
         var secondDownstreamHost = "localhost";
 
-        var serviceName = "websockets";
+        const string serviceName = "websockets";
         var consulPort = PortFinder.GetRandomPort();
         var serviceEntryOne = new ServiceEntry
         {
@@ -32,7 +33,7 @@ public sealed class ConsulWebSocketTests : WebSocketsSteps
                 Address = downstreamHost,
                 Port = downstreamPort,
                 ID = Guid.NewGuid().ToString(),
-                Tags = Array.Empty<string>(),
+                Tags = [],
             },
         };
         var serviceEntryTwo = new ServiceEntry
@@ -43,34 +44,15 @@ public sealed class ConsulWebSocketTests : WebSocketsSteps
                 Address = secondDownstreamHost,
                 Port = secondDownstreamPort,
                 ID = Guid.NewGuid().ToString(),
-                Tags = Array.Empty<string>(),
+                Tags = [],
             },
         };
-
-        var config = new FileConfiguration
-        {
-            Routes = new List<FileRoute>
-            {
-                new()
-                {
-                    UpstreamPathTemplate = "/",
-                    DownstreamPathTemplate = "/ws",
-                    DownstreamScheme = "ws",
-                    LoadBalancerOptions = new FileLoadBalancerOptions { Type = "RoundRobin" },
-                    ServiceName = serviceName,
-                },
-            },
-            GlobalConfiguration = new FileGlobalConfiguration
-            {
-                ServiceDiscoveryProvider = new FileServiceDiscoveryProvider
-                {
-                    Scheme = "http",
-                    Host = "localhost",
-                    Port = consulPort,
-                    Type = "consul",
-                },
-            },
-        };
+        var route = GivenRoute(0, "/", "/ws");
+        route.DownstreamHostAndPorts.Clear();
+        route.DownstreamScheme = Uri.UriSchemeWs;
+        route.LoadBalancerOptions = new(nameof(RoundRobin));
+        route.ServiceName = serviceName;
+        var config = GivenDiscoveryConfiguration([route], consulPort);
         int ocelotPort = PortFinder.GetRandomPort();
         this.Given(_ => GivenThereIsAConfiguration(config))
             .And(_ => StartOcelotWithWebSockets(ocelotPort, WithConsul))
@@ -80,10 +62,8 @@ public sealed class ConsulWebSocketTests : WebSocketsSteps
             .And(_ => GivenWebSocketsServiceIsRunningAsync(secondDownstreamPort, "/ws", MessageAsync))
             .When(_ => WhenIStartTheClients(ocelotPort))
             .Then(_ => ThenBothDownstreamServicesAreCalled())
-            .BDDfy();
+        .BDDfy();
     }
-
-    private void WithConsul(IServiceCollection services) => services.AddOcelot().AddConsul();
 
     private void GivenTheServicesAreRegisteredWithConsul(params ServiceEntry[] serviceEntries)
     {

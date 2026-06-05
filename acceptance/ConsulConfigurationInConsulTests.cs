@@ -5,115 +5,103 @@ using Newtonsoft.Json;
 using Ocelot.Cache;
 using Ocelot.Configuration.File;
 using Ocelot.DependencyInjection;
-using Ocelot.Testing.Steps;
 using System.Net;
 using System.Text;
 using TestStack.BDDfy;
 
 namespace Ocelot.Discovery.Consul.Acceptance;
 
-public sealed class ConsulConfigurationInConsulTests : RateLimitingSteps
+/// <summary>
+/// Feature: <see href="https://ocelot.readthedocs.io/en/develop/features/servicediscovery.html#configuration-in-kv-store">Configuration in Consul KV store</see>.
+/// </summary>
+/// <remarks>
+/// Initial commit: <see href="https://github.com/ThreeMammals/Ocelot/commit/c3cd181b90fb5d5353b886073b3b7c66c12c6bab">c3cd181</see> on April 16, 2017.<br/>
+/// First release: <see href="https://github.com/ThreeMammals/Ocelot/releases/tag/1.4.2">1.4.2</see> on April 16, 2017.<br/>
+/// Pull request: <see href="https://github.com/ThreeMammals/Ocelot/pull/85">85</see>.
+/// </remarks>
+public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
 {
     private FileConfiguration _consulConfig;
     private readonly List<ServiceEntry> _consulServices = [];
 
     [Fact]
+    [Trait("Feat", "85")] // https://github.com/ThreeMammals/Ocelot/pull/85
+    [Trait("Release", "1.4.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/1.4.2
+    [Trait("Commit", "c3cd181")] // https://github.com/ThreeMammals/Ocelot/commit/c3cd181b90fb5d5353b886073b3b7c66c12c6bab
     public void Should_return_response_200_with_simple_url()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
         var route = GivenRoute(servicePort);
-        var configuration = GivenConfiguration(route);
-        configuration.GlobalConfiguration.ServiceDiscoveryProvider = new()
-        {
-            Scheme = "http",
-            Host = "localhost",
-            Port = consulPort,
-        };
-        this.Given(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, string.Empty))
+        var configuration = GivenDiscoveryConfiguration([route], consulPort);
+        var serviceName = ServiceName();
+        this.Given(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
             .And(x => x.GivenThereIsAServiceRunningOn(servicePort, route.UpstreamPathTemplate, HttpStatusCode.OK, "Hello from Laura"))
             .And(x => GivenThereIsAConfiguration(configuration))
             .And(x => x.GivenOcelotIsRunningUsingConsulToStoreConfig())
             .When(x => WhenIGetUrlOnTheApiGateway("/"))
             .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
             .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-            .BDDfy();
+        .BDDfy();
     }
 
     [Fact]
+    [Trait("Feat", "154")] // https://github.com/ThreeMammals/Ocelot/issues/154
+    [Trait("PR", "157")] // https://github.com/ThreeMammals/Ocelot/pull/157
+    [Trait("Release", "2.0.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/2.0.2
+    [Trait("Commit", "6824210")] // https://github.com/ThreeMammals/Ocelot/commit/68242102d8fd3f634167ff1afd92bafa87081279
     public void Should_load_configuration_out_of_consul()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
-        var configuration = GivenConfiguration();
-        configuration.GlobalConfiguration.ServiceDiscoveryProvider = new()
-        {
-            Scheme = "http",
-            Host = "localhost",
-            Port = consulPort,
-        };
+        var configuration = GivenDiscoveryConfiguration([], consulPort); // No routes -> 404 Not Found
         var route = GivenRoute(servicePort, "/cs/status", "/status");
-        var consulConfig = GivenConfiguration(route);
-        consulConfig.GlobalConfiguration.ServiceDiscoveryProvider = new()
-        {
-            Scheme = "http",
-            Host = "localhost",
-            Port = consulPort,
-        };
+        var consulConfig = GivenDiscoveryConfiguration([route], consulPort);
+        var serviceName = ServiceName();
         this.Given(x => GivenTheConsulConfigurationIs(consulConfig))
-            .And(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, string.Empty))
+            .And(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
             .And(x => x.GivenThereIsAServiceRunningOn(servicePort, "/status", HttpStatusCode.OK, "Hello from Laura"))
             .And(x => GivenThereIsAConfiguration(configuration))
             .And(x => x.GivenOcelotIsRunningUsingConsulToStoreConfig())
             .When(x => WhenIGetUrlOnTheApiGateway("/cs/status"))
             .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
             .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-            .BDDfy();
+        .BDDfy();
     }
 
     [Fact]
+    [Trait("Feat", "154")] // https://github.com/ThreeMammals/Ocelot/issues/154
+    [Trait("PR", "157")] // https://github.com/ThreeMammals/Ocelot/pull/157
+    [Trait("Release", "2.0.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/2.0.2
+    [Trait("Commit", "6824210")] // https://github.com/ThreeMammals/Ocelot/commit/68242102d8fd3f634167ff1afd92bafa87081279
     public void Should_load_configuration_out_of_consul_if_it_is_changed()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
         var route1 = GivenRoute(servicePort, "/cs/status", "/status");
-        var configuration = GivenConfiguration();
-        configuration.GlobalConfiguration.ServiceDiscoveryProvider = new()
-        {
-            Scheme = Uri.UriSchemeHttp,
-            Host = "localhost",
-            Port = consulPort,
-            Type = nameof(Consul),
-        };
-        var consulConfig = GivenConfiguration(route1);
-        consulConfig.GlobalConfiguration.ServiceDiscoveryProvider = new()
-        {
-            Scheme = Uri.UriSchemeHttp,
-            Host = "localhost",
-            Port = consulPort,
-        };
+        var configuration = GivenDiscoveryConfiguration([], consulPort); // No routes
+        var consulConfig = GivenDiscoveryConfiguration([route1], consulPort);
         var route2 = GivenRoute(servicePort, "/cs/status/awesome", "/status");
-        var secondConsulConfig = GivenConfiguration(route2);
-        secondConsulConfig.GlobalConfiguration.ServiceDiscoveryProvider = new()
-        {
-            Scheme = Uri.UriSchemeHttp,
-            Host = "localhost",
-            Port = consulPort,
-        };
+        var consulConfig2 = GivenDiscoveryConfiguration([route2], consulPort);
+        var serviceName = ServiceName();
         this.Given(x => GivenTheConsulConfigurationIs(consulConfig))
-            .And(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, string.Empty)) // empty service name?
+            .And(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
             .And(x => GivenThereIsAServiceRunningOn(servicePort, "/status", HttpStatusCode.OK, "Hello from Laura"))
             .And(x => GivenThereIsAConfiguration(configuration))
             .And(x => GivenOcelotIsRunningUsingConsulToStoreConfig())
             .When(x => WhenIGetUrlOnTheApiGateway("/cs/status"))
             .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
             .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-            .Given(x => GivenTheConsulConfigurationIs(secondConsulConfig))
+            .Given(x => GivenTheConsulConfigurationIs(consulConfig2))
             .Then(x => ThenTheConfigIsUpdatedInOcelot("/cs/status/awesome"))
         .BDDfy();
     }
 
     [Fact]
+    [Trait("Feat", "458")] // https://github.com/ThreeMammals/Ocelot/issues/458
+    [Trait("PR", "508")] // https://github.com/ThreeMammals/Ocelot/pull/508
+    [Trait("Release", "8.0.4")] // https://github.com/ThreeMammals/Ocelot/releases/tag/8.0.4
+    [Trait("Commit", "b0a20d1")] // https://github.com/ThreeMammals/Ocelot/commit/b0a20d13b93acb829ba1c9c6ee25b77564f49fec
     public void Should_handle_request_to_consul_for_downstream_service_and_make_request_no_re_routes_and_rate_limit()
     {
         var consulPort = PortFinder.GetRandomPort();
@@ -143,50 +131,35 @@ public sealed class ConsulConfigurationInConsulTests : RateLimitingSteps
             },
         };
 
-        var consulConfig = GivenConfiguration();
+        var consulConfig = GivenDiscoveryConfiguration([], consulPort);
         consulConfig.DynamicRoutes.Add(route);
-        consulConfig.GlobalConfiguration = new()
+        consulConfig.GlobalConfiguration.RateLimitOptions = new()
         {
-            ServiceDiscoveryProvider = new()
-            {
-                Scheme = "http",
-                Host = "localhost",
-                Port = consulPort,
-            },
-            RateLimitOptions = new()
-            {
-                ClientIdHeader = "ClientId",
-                StatusCode = StatusCodes.Status428PreconditionRequired,
-            },
-            DownstreamScheme = "http",
+            ClientIdHeader = "ClientId",
+            StatusCode = StatusCodes.Status428PreconditionRequired,
         };
+        consulConfig.GlobalConfiguration.DownstreamScheme = "http";
 
-        var configuration = GivenConfiguration();
-        configuration.GlobalConfiguration.ServiceDiscoveryProvider = new()
-        {
-            Scheme = "http",
-            Host = "localhost",
-            Port = consulPort,
-        };
-        var upstreamPath = $"/{serviceName}/something";
+        var configuration = GivenDiscoveryConfiguration([], consulPort);
+        var upstreamPath = $"/{serviceName}/something"; // dynamic route path
         this.Given(x => x.GivenThereIsAServiceRunningOn(servicePort, "/something", HttpStatusCode.OK, "Hello from Laura"))
-        .And(x => GivenTheConsulConfigurationIs(consulConfig))
-        .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
-        .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntryOne))
-        .And(x => GivenThereIsAConfiguration(configuration))
-        .And(x => x.GivenOcelotIsRunningUsingConsulToStoreConfig())
-        .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1))
-        .Then(x => ThenTheStatusCodeShouldBe(200))
-        .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 2))
-        .Then(x => ThenTheStatusCodeShouldBe(200))
-        .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1))
-        .Then(x => ThenTheStatusCodeShouldBe(428))
+            .And(x => GivenTheConsulConfigurationIs(consulConfig))
+            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
+            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntryOne))
+            .And(x => GivenThereIsAConfiguration(configuration))
+            .And(x => x.GivenOcelotIsRunningUsingConsulToStoreConfig())
+            .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1))
+            .Then(x => ThenTheStatusCodeShouldBe(200))
+            .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 2))
+            .Then(x => ThenTheStatusCodeShouldBe(200))
+            .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1))
+            .Then(x => ThenTheStatusCodeShouldBe(428))
         .BDDfy();
     }
 
     private async Task ThenTheConfigIsUpdatedInOcelot(string url)
     {
-        var updated = await Wait.For(10_000).UntilAsync(async (cancellation) =>
+        var updated = await Wait.For(10_000).UntilAsync(async (ct) =>
         {
             await WhenIGetUrlOnTheApiGateway(url);
             // ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
