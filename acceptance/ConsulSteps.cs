@@ -9,7 +9,7 @@ namespace Ocelot.Discovery.Consul.Acceptance;
 
 public class ConsulSteps : DiscoverySteps
 {
-    public FileRoute[] NoRoutes = null;
+    public static readonly FileRoute[] NoRoutes = null;
 
     public FileConfiguration GivenDiscoveryConfiguration(FileRoute[] routes, int port,
         string scheme = null, string host = null, string provider = null)
