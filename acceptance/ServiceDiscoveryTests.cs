@@ -361,6 +361,37 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
         .BDDfy();
     }
 
+    [Fact]
+    [Trait("Bug", "2208")] // https://github.com/ThreeMammals/Ocelot/issues/2208
+    public void ShouldReturnServiceAddressWhenNodeNameIsNotAHostName()
+    {
+        const string serviceName = "OpenTestService";
+        string[] methods = [HttpMethods.Post, HttpMethods.Get];
+        var consulPort = PortFinder.GetRandomPort();
+        var servicePort = PortFinder.GetRandomPort();
+        var serviceEntry = GivenServiceEntry(servicePort,
+            id: "OPEN_TEST_01",
+            serviceName: serviceName,
+            tags: [serviceName]);
+        var serviceNode = new Node() { Name = "not a host name" };
+        serviceEntry.Node = serviceNode;
+        var route = GivenDiscoveryRoute("/api/{url}", "/open/{url}", serviceName, httpMethods: methods);
+        var configuration = GivenDiscoveryConfiguration([route], consulPort);
+
+        this.Given(x => GivenThereIsAServiceRunningOnPath(servicePort, "/api/home", "Hello from Raman"))
+            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
+            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntry))
+            .And(x => x.GivenTheServiceNodesAreRegisteredWithConsul(serviceNode))
+            .And(x => GivenThereIsAConfiguration(configuration))
+            .And(x => GivenOcelotIsRunning(WithConsul))
+            .When(x => WhenIGetUrlOnTheApiGateway("/open/home"))
+            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
+            .And(x => ThenTheResponseBodyShouldBe("Hello from Raman"))
+            .And(x => ThenConsulShouldHaveBeenCalledTimes(1))
+            .And(x => ThenConsulNodesShouldHaveBeenCalledTimes(1))
+        .BDDfy();
+    }
+
     private static readonly string[] Bug2119ServiceNames = new string[] { "ProjectsService", "CustomersService" };
     private readonly ILoadBalancer[] _lbAnalyzers = new ILoadBalancer[Bug2119ServiceNames.Length]; // emulate LoadBalancerHouse's collection
 
