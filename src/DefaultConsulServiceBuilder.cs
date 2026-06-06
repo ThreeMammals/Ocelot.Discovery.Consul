@@ -98,7 +98,14 @@ public class DefaultConsulServiceBuilder : IConsulServiceBuilder
             entry.Service.Port);
 
     protected virtual string GetDownstreamHost(ServiceEntry entry, Node node)
-        => node != null ? node.Name : entry.Service.Address;
+    {
+        var nodeName = node?.Name;
+        return CanUseNodeNameAsHost(nodeName) ? nodeName! : entry.Service.Address;
+    }
+
+    protected virtual bool CanUseNodeNameAsHost(string? nodeName)
+        => !string.IsNullOrWhiteSpace(nodeName)
+            && Uri.CheckHostName(nodeName) != UriHostNameType.Unknown;
 
     protected virtual string GetServiceId(ServiceEntry entry, Node node)
         => entry.Service.ID;

@@ -121,7 +121,7 @@ public sealed class DefaultConsulServiceBuilderTests : UnitTest
     {
         Arrange();
 
-        // Arrange, Act, Assert: node branch
+        // Arrange, Act, Assert: node branch with a hostname
         ServiceEntry entry = new()
         {
             Service = new() { Address = TestName() },
@@ -129,6 +129,11 @@ public sealed class DefaultConsulServiceBuilderTests : UnitTest
         var node = new Node { Name = "test1" };
         var actual = GetDownstreamHost.Invoke(sut, [entry, node]) as string;
         Assert.NotNull(actual); Assert.Equal("test1", actual);
+
+        // Arrange, Act, Assert: node branch with a custom non-host name
+        node = new Node { Name = "not a host name" };
+        actual = GetDownstreamHost.Invoke(sut, [entry, node]) as string;
+        Assert.NotNull(actual); Assert.Equal(TestName(), actual);
 
         // Arrange, Act, Assert: entry branch
         node = null;
@@ -366,5 +371,21 @@ public sealed class DefaultConsulServiceBuilderTests : UnitTest
 
         Assert.NotNull(result);
         Assert.Equal("my-node", result.HostAndPort.DownstreamHost);
+    }
+
+    [Fact]
+    public void CreateService_WithNonHostNodeName_UsesServiceAddress()
+    {
+        Arrange();
+        var entry = new ServiceEntry
+        {
+            Service = new AgentService { Service = "svc", Address = "10.0.0.1", Port = 8080, ID = "id1" },
+        };
+        var node = new Node { Name = "not a host name", Address = "10.0.0.1" };
+
+        var result = sut.CreateService(entry, node);
+
+        Assert.NotNull(result);
+        Assert.Equal("10.0.0.1", result.HostAndPort.DownstreamHost);
     }
 }
