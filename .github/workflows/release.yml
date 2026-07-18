@@ -12,9 +12,9 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -36,16 +36,16 @@ jobs:
           xml_value=$(xmllint --xpath "string((//Project/ItemGroup)[2]/PackageReference[@Include='Ocelot']/@Version)" ./src/Ocelot.Discovery.Consul.csproj)
           echo Ocelot Ref Ver: $xml_value
           echo "OcelotRefVer=$xml_value" >> $GITHUB_OUTPUT
-          xml_value=$(xmllint --xpath "string((//Project/ItemGroup)[2]/PackageReference[@Include='Polly']/@Version)" ./src/Ocelot.Discovery.Consul.csproj)
-          echo Polly Ref Ver: $xml_value
-          echo "PollyRefVer=$xml_value" >> $GITHUB_OUTPUT
+          xml_value=$(xmllint --xpath "string((//Project/ItemGroup)[2]/PackageReference[@Include='Consul']/@Version)" ./src/Ocelot.Discovery.Consul.csproj)
+          echo Consul Ref Ver: $xml_value
+          echo "ConsulRefVer=$xml_value" >> $GITHUB_OUTPUT
       # Replace Version, PackageReleaseNotes in .csproj
       - name: Update XML in .csproj
         id: ver
         run: |
           echo Version: ${{ steps.xml.outputs.Version }}
           echo Ocelot Ref Ver: ${{ steps.xml.outputs.OcelotRefVer }}
-          echo Polly Ref Ver: ${{ steps.xml.outputs.PollyRefVer }}
+          echo Consul Ref Ver: ${{ steps.xml.outputs.ConsulRefVer }}
           s_Version="${{ steps.xml.outputs.Version }}"
           if [[ "$s_Version" == *-* ]]; then
             echo Version contains '-'
@@ -71,7 +71,7 @@ jobs:
       - name: README.md
         run: |
           # Replaces relative GitHub paths with NuGet-friendly absolute URLs
-          sed -i 's|/.github/img/ocelot_icon.png|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/refs/heads/main/.github/img/ocelot_icon.png|g; s|/.github/img/consul.net_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/refs/heads/main/.github/img/consul.net_icon.svg|g; s|/.github/img/consul.hashicorp_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/refs/heads/main/.github/img/consul.hashicorp_icon.svg|g' README.md
+          sed -i 's|/.github/img/ocelot_icon.png|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.github/img/ocelot_icon.png|g; s|/.github/img/consul.net_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.github/img/consul.net_icon.svg|g; s|/.github/img/consul.hashicorp_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.github/img/consul.hashicorp_icon.svg|g' README.md
           # Removes tags <sub> and </sub>
           sed -i 's/<\/\?sub>//g' README.md
           echo "::group::New content of README.md"
@@ -82,47 +82,47 @@ jobs:
         run: dotnet restore ./Ocelot.Discovery.Consul.slnx
       - name: Pack project
         run: dotnet pack ./src/Ocelot.Discovery.Consul.csproj --configuration Release --output ./packages /p:ContinuousIntegrationBuild=true
-      - name: Publish to GitHub Packages
-        run: dotnet nuget push ./packages/*.nupkg --source "https://nuget.pkg.github.com/ThreeMammals/index.json" --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
-      - name: Publish to NuGet
-        run: dotnet nuget push ./packages/*.nupkg --source "https://api.nuget.org/v3/index.json" --api-key ${{ secrets.NUGET_API_KEY_2025 }} --skip-duplicate
+      # - name: Publish to GitHub Packages
+      #   run: dotnet nuget push ./packages/*.nupkg --source "https://nuget.pkg.github.com/ThreeMammals/index.json" --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
+      # - name: Publish to NuGet
+      #   run: dotnet nuget push ./packages/*.nupkg --source "https://api.nuget.org/v3/index.json" --api-key ${{ secrets.NUGET_API_KEY_2025 }} --skip-duplicate
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v2 # https://github.com/softprops/action-gh-release
         env:
           PACKAGE_VERSION: ${{ steps.ver.outputs.PkgVersion }}
           OCELOT_VERSION: ${{ steps.xml.outputs.OcelotRefVer }}
-          POLLY_VERSION: ${{ steps.xml.outputs.PollyRefVer }}
+          CONSUL_VERSION: ${{ steps.xml.outputs.ConsulRefVer }}
         with:
           # tag_name: 0.0.3 # Name of a tag. defaults to github.ref_name
           body: |
             ## Version [${{ env.PACKAGE_VERSION }}](https://www.nuget.org/packages/Ocelot.Discovery.Consul/${{ env.PACKAGE_VERSION }})
             > For Ocelot release: [${{ env.OCELOT_VERSION }}](https://github.com/ThreeMammals/Ocelot.Discovery.Consul/releases/tag/${{ env.OCELOT_VERSION }})
             > Ocelot package: v[${{ env.OCELOT_VERSION }}](https://www.nuget.org/packages/Ocelot/${{ env.OCELOT_VERSION }})
-            > Polly package: v[${{ env.POLLY_VERSION }}](https://www.nuget.org/packages/Polly/${{ env.POLLY_VERSION }})
+            > Consul package: v[${{ env.CONSUL_VERSION }}](https://www.nuget.org/packages/Consul/${{ env.CONSUL_VERSION }})
 
             For more details, see Ocelot [Releases](https://github.com/ThreeMammals/Ocelot/releases) &rarr; [${{ env.OCELOT_VERSION }}](https://www.nuget.org/packages/Ocelot/${{ env.OCELOT_VERSION }})
           files: |
             packages/*.*pkg
           prerelease: false
           make_latest: true
-      - name: Release to Ocelot Repo
-        uses: softprops/action-gh-release@v2 # https://github.com/softprops/action-gh-release
-        if: github.ref_type == 'tag'
-        env:
-          PACKAGE_TAG: ${{ github.ref_name }}
-          PACKAGE_VERSION: ${{ steps.ver.outputs.PkgVersion }}
-          OCELOT_VERSION: ${{ steps.xml.outputs.OcelotRefVer }}
-        with:
-          repository: ThreeMammals/Ocelot
-          token: ${{ secrets.OCELOT_EXTENSION_PACKAGE_RELEASE_TOKEN }}
-          name: Ocelot.Discovery.Consul ${{ env.PACKAGE_TAG }}
-          tag_name: qos.polly.${{ env.PACKAGE_VERSION }}
-          target_commitish: develop # top commit must contain updated docs
-          body: |
-            ## Ocelot.Discovery.Consul version [${{ env.PACKAGE_VERSION }}](https://www.nuget.org/packages/Ocelot.Discovery.Consul/${{ env.PACKAGE_VERSION }})
-            > Ocelot release: [${{ env.OCELOT_VERSION }}](https://github.com/ThreeMammals/Ocelot/releases/tag/${{ env.OCELOT_VERSION }})
-            > Ocelot.Discovery.Consul release: [${{ env.PACKAGE_VERSION }}](https://github.com/ThreeMammals/Ocelot.Discovery.Consul/releases/tag/${{ env.PACKAGE_TAG }})
-          files: |
-            packages/*.*pkg
-          prerelease: true
+      # - name: Release to Ocelot Repo
+      #   uses: softprops/action-gh-release@v3 # https://github.com/softprops/action-gh-release
+      #   if: github.ref_type == 'tag'
+      #   env:
+      #     PACKAGE_TAG: ${{ github.ref_name }}
+      #     PACKAGE_VERSION: ${{ steps.ver.outputs.PkgVersion }}
+      #     OCELOT_VERSION: ${{ steps.xml.outputs.OcelotRefVer }}
+      #   with:
+      #     repository: ThreeMammals/Ocelot
+      #     token: ${{ secrets.OCELOT_EXTENSION_PACKAGE_RELEASE_TOKEN }}
+      #     name: Ocelot.Discovery.Consul ${{ env.PACKAGE_TAG }}
+      #     tag_name: odc.${{ env.PACKAGE_VERSION }}
+      #     target_commitish: develop # top commit must contain updated docs
+      #     body: |
+      #       ## Ocelot.Discovery.Consul version [${{ env.PACKAGE_VERSION }}](https://www.nuget.org/packages/Ocelot.Discovery.Consul/${{ env.PACKAGE_VERSION }})
+      #       > Ocelot release: [${{ env.OCELOT_VERSION }}](https://github.com/ThreeMammals/Ocelot/releases/tag/${{ env.OCELOT_VERSION }})
+      #       > Ocelot.Discovery.Consul release: [${{ env.PACKAGE_VERSION }}](https://github.com/ThreeMammals/Ocelot.Discovery.Consul/releases/tag/${{ env.PACKAGE_TAG }})
+      #     files: |
+      #       packages/*.*pkg
+      #     prerelease: true
