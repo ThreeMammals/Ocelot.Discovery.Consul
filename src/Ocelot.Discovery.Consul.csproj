@@ -28,7 +28,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="..\LICENSE" Pack="true" PackagePath="\" Link="package\LICENSE" />
-    <None Include="..\.github\img\ocelot_icon.png" Pack="true" PackagePath="\" Link="package\ocelot_icon.png" />
+    <None Include="..\.config\ocelot_icon.png" Pack="true" PackagePath="\" Link="package\ocelot_icon.png" />
     <None Include="..\README.md" Pack="true" PackagePath="\" Link="package\README.md" />
   </ItemGroup>
   <ItemGroup>

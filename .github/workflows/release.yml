@@ -71,7 +71,7 @@ jobs:
       - name: README.md
         run: |
           # Replaces relative GitHub paths with NuGet-friendly absolute URLs
-          sed -i 's|/.github/img/ocelot_icon.png|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.github/img/ocelot_icon.png|g; s|/.github/img/consul.net_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.github/img/consul.net_icon.svg|g; s|/.github/img/consul.hashicorp_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.github/img/consul.hashicorp_icon.svg|g' README.md
+          sed -i 's|/.config/ocelot_icon.png|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.config/ocelot_icon.png|g; s|/.config/consul.net_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.config/consul.net_icon.svg|g; s|/.config/consul.hashicorp_icon.svg|https://raw.githubusercontent.com/ThreeMammals/Ocelot.Discovery.Consul/main/.config/consul.hashicorp_icon.svg|g' README.md
           # Removes tags <sub> and </sub>
           sed -i 's/<\/\?sub>//g' README.md
           echo "::group::New content of README.md"
@@ -97,7 +97,7 @@ jobs:
           # tag_name: 0.0.3 # Name of a tag. defaults to github.ref_name
           body: |
             ## Version [${{ env.PACKAGE_VERSION }}](https://www.nuget.org/packages/Ocelot.Discovery.Consul/${{ env.PACKAGE_VERSION }})
-            > For Ocelot release: [${{ env.OCELOT_VERSION }}](https://github.com/ThreeMammals/Ocelot.Discovery.Consul/releases/tag/${{ env.OCELOT_VERSION }})
+            > For Ocelot release: [${{ env.OCELOT_VERSION }}](https://github.com/ThreeMammals/Ocelot/releases/tag/${{ env.OCELOT_VERSION }})
             > Ocelot package: v[${{ env.OCELOT_VERSION }}](https://www.nuget.org/packages/Ocelot/${{ env.OCELOT_VERSION }})
             > Consul package: v[${{ env.CONSUL_VERSION }}](https://www.nuget.org/packages/Consul/${{ env.CONSUL_VERSION }})
 
