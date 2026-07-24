@@ -47,7 +47,7 @@ public class ConsulRateLimitingSteps : RateLimitingSteps
         => steps.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.InvokeMethod);
 
     public string ServiceName([CallerMemberName] string serviceName = null)
-        => Method(nameof(ServiceName)).Invoke(steps, [serviceName]) as string;
+        => serviceName ?? GetType().Name;
 
     public string ServiceNamespace()
         => GetType().Namespace;
