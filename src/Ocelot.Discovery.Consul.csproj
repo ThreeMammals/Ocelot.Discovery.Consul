@@ -9,7 +9,7 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>CS1591</NoWarn>
     <!--Package properties-->
-    <Version>25.0.0</Version>
+    <Version>25.0.1</Version>
     <PackageId>Ocelot.Discovery.Consul</PackageId>
     <PackageDescription>Provides Ocelot extensions to use Consul service discovery.</PackageDescription>
     <PackageReleaseNotes>https://github.com/ThreeMammals/Ocelot.Discovery.Consul/releases</PackageReleaseNotes>
