@@ -97,8 +97,8 @@ jobs:
           # tag_name: 0.0.3 # Name of a tag. defaults to github.ref_name
           body: |
             ## Version [${{ env.PACKAGE_VERSION }}](https://www.nuget.org/packages/Ocelot.Discovery.Consul/${{ env.PACKAGE_VERSION }}) for Ocelot release v[${{ env.OCELOT_VERSION }}](https://github.com/ThreeMammals/Ocelot/releases/tag/${{ env.OCELOT_VERSION }})
-            > Ocelot package: v[${{ env.OCELOT_VERSION }}](https://www.nuget.org/packages/Ocelot/${{ env.OCELOT_VERSION }})
-            > Consul package: v[${{ env.CONSUL_VERSION }}](https://www.nuget.org/packages/Consul/${{ env.CONSUL_VERSION }})
+            - Ocelot package: v[${{ env.OCELOT_VERSION }}](https://www.nuget.org/packages/Ocelot/${{ env.OCELOT_VERSION }})
+            - Consul package: v[${{ env.CONSUL_VERSION }}](https://www.nuget.org/packages/Consul/${{ env.CONSUL_VERSION }})
 
             For more details, see the Ocelot [releases](https://github.com/ThreeMammals/Ocelot/releases) &rarr; specifically [${{ env.OCELOT_VERSION }}](https://github.com/ThreeMammals/Ocelot/releases/tag/${{ env.OCELOT_VERSION }})
           files: |

@@ -13,7 +13,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
-    <PackageReference Include="Ocelot.Testing" Version="25.0.0-beta.10" />
+    <PackageReference Include="Ocelot.Testing" Version="25.0.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0-pre.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
