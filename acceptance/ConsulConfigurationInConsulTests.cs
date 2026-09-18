@@ -5,9 +5,8 @@ using Newtonsoft.Json;
 using Ocelot.Cache;
 using Ocelot.Configuration.File;
 using Ocelot.DependencyInjection;
-using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
-using TestStack.BDDfy;
 
 namespace Ocelot.Discovery.Consul.Acceptance;
 
@@ -28,21 +27,19 @@ public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
     [Trait("Feat", "85")] // https://github.com/ThreeMammals/Ocelot/pull/85
     [Trait("Release", "1.4.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/1.4.2
     [Trait("Commit", "c3cd181")] // https://github.com/ThreeMammals/Ocelot/commit/c3cd181b90fb5d5353b886073b3b7c66c12c6bab
-    public void Should_return_response_200_with_simple_url()
+    public async Task Should_return_response_200_with_simple_url()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
         var route = GivenRoute(servicePort);
         var configuration = GivenDiscoveryConfiguration([route], consulPort);
-        var serviceName = ServiceName();
-        this.Given(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
-            .And(x => x.GivenThereIsAServiceRunningOn(servicePort, route.UpstreamPathTemplate, HttpStatusCode.OK, "Hello from Laura"))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => x.GivenOcelotIsRunningUsingConsulToStoreConfig())
-            .When(x => WhenIGetUrlOnTheApiGateway("/"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-        .BDDfy();
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenThereIsAServiceRunningOn(servicePort, route.UpstreamPathTemplate, HttpStatusCode.OK, "Hello from Laura");
+        GivenThereIsAConfiguration(configuration);
+        await GivenOcelotIsRunningUsingConsulToStoreConfig();
+        await WhenIGetUrlOnTheApiGateway("/");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Laura");
     }
 
     [Fact]
@@ -50,23 +47,21 @@ public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
     [Trait("PR", "157")] // https://github.com/ThreeMammals/Ocelot/pull/157
     [Trait("Release", "2.0.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/2.0.2
     [Trait("Commit", "6824210")] // https://github.com/ThreeMammals/Ocelot/commit/68242102d8fd3f634167ff1afd92bafa87081279
-    public void Should_load_configuration_out_of_consul()
+    public async Task Should_load_configuration_out_of_consul()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
         var configuration = GivenDiscoveryConfiguration([], consulPort); // No routes -> 404 Not Found
         var route = GivenRoute(servicePort, "/cs/status", "/status");
         var consulConfig = GivenDiscoveryConfiguration([route], consulPort);
-        var serviceName = ServiceName();
-        this.Given(x => GivenTheConsulConfigurationIs(consulConfig))
-            .And(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
-            .And(x => x.GivenThereIsAServiceRunningOn(servicePort, "/status", HttpStatusCode.OK, "Hello from Laura"))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => x.GivenOcelotIsRunningUsingConsulToStoreConfig())
-            .When(x => WhenIGetUrlOnTheApiGateway("/cs/status"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-        .BDDfy();
+        GivenTheConsulConfigurationIs(consulConfig);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenThereIsAServiceRunningOn(servicePort, "/status", HttpStatusCode.OK, "Hello from Laura");
+        GivenThereIsAConfiguration(configuration);
+        await GivenOcelotIsRunningUsingConsulToStoreConfig();
+        await WhenIGetUrlOnTheApiGateway("/cs/status");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Laura");
     }
 
     [Fact]
@@ -74,7 +69,7 @@ public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
     [Trait("PR", "157")] // https://github.com/ThreeMammals/Ocelot/pull/157
     [Trait("Release", "2.0.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/2.0.2
     [Trait("Commit", "6824210")] // https://github.com/ThreeMammals/Ocelot/commit/68242102d8fd3f634167ff1afd92bafa87081279
-    public void Should_load_configuration_out_of_consul_if_it_is_changed()
+    public async Task Should_load_configuration_out_of_consul_if_it_is_changed()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
@@ -83,18 +78,16 @@ public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
         var consulConfig = GivenDiscoveryConfiguration([route1], consulPort);
         var route2 = GivenRoute(servicePort, "/cs/status/awesome", "/status");
         var consulConfig2 = GivenDiscoveryConfiguration([route2], consulPort);
-        var serviceName = ServiceName();
-        this.Given(x => GivenTheConsulConfigurationIs(consulConfig))
-            .And(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
-            .And(x => GivenThereIsAServiceRunningOn(servicePort, "/status", HttpStatusCode.OK, "Hello from Laura"))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunningUsingConsulToStoreConfig())
-            .When(x => WhenIGetUrlOnTheApiGateway("/cs/status"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-            .Given(x => GivenTheConsulConfigurationIs(consulConfig2))
-            .Then(x => ThenTheConfigIsUpdatedInOcelot("/cs/status/awesome"))
-        .BDDfy();
+        GivenTheConsulConfigurationIs(consulConfig);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenThereIsAServiceRunningOn(servicePort, "/status", HttpStatusCode.OK, "Hello from Laura");
+        GivenThereIsAConfiguration(configuration);
+        await GivenOcelotIsRunningUsingConsulToStoreConfig();
+        await WhenIGetUrlOnTheApiGateway("/cs/status");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Laura");
+        GivenTheConsulConfigurationIs(consulConfig2);
+        await ThenTheConfigIsUpdatedInOcelot("/cs/status/awesome");
     }
 
     [Fact]
@@ -102,7 +95,7 @@ public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
     [Trait("PR", "508")] // https://github.com/ThreeMammals/Ocelot/pull/508
     [Trait("Release", "8.0.4")] // https://github.com/ThreeMammals/Ocelot/releases/tag/8.0.4
     [Trait("Commit", "b0a20d1")] // https://github.com/ThreeMammals/Ocelot/commit/b0a20d13b93acb829ba1c9c6ee25b77564f49fec
-    public void Should_handle_request_to_consul_for_downstream_service_and_make_request_no_re_routes_and_rate_limit()
+    public async Task Should_handle_request_to_consul_for_downstream_service_and_make_request_no_re_routes_and_rate_limit()
     {
         var consulPort = PortFinder.GetRandomPort();
         const string serviceName = "web";
@@ -142,19 +135,18 @@ public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
 
         var configuration = GivenDiscoveryConfiguration([], consulPort);
         var upstreamPath = $"/{serviceName}/something"; // dynamic route path
-        this.Given(x => x.GivenThereIsAServiceRunningOn(servicePort, "/something", HttpStatusCode.OK, "Hello from Laura"))
-            .And(x => GivenTheConsulConfigurationIs(consulConfig))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntryOne))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => x.GivenOcelotIsRunningUsingConsulToStoreConfig())
-            .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1))
-            .Then(x => ThenTheStatusCodeShouldBe(200))
-            .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 2))
-            .Then(x => ThenTheStatusCodeShouldBe(200))
-            .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1))
-            .Then(x => ThenTheStatusCodeShouldBe(428))
-        .BDDfy();
+        GivenThereIsAServiceRunningOn(servicePort, "/something", HttpStatusCode.OK, "Hello from Laura");
+        GivenTheConsulConfigurationIs(consulConfig);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName);
+        GivenTheServicesAreRegisteredWithConsul(serviceEntryOne);
+        GivenThereIsAConfiguration(configuration);
+        await GivenOcelotIsRunningUsingConsulToStoreConfig();
+        await WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1);
+        ThenTheStatusCodeShouldBe(200);
+        await WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 2);
+        ThenTheStatusCodeShouldBe(200);
+        await WhenIGetUrlOnTheApiGatewayMultipleTimes(upstreamPath, 1);
+        ThenTheStatusCodeShouldBe(428);
     }
 
     private async Task ThenTheConfigIsUpdatedInOcelot(string url)
@@ -190,7 +182,7 @@ public sealed class ConsulConfigurationInConsulTests : ConsulRateLimitingSteps
         return Task.Delay(1250, CancelMe);
     }
 
-    private void GivenThereIsAFakeConsulServiceDiscoveryProvider(int port, string serviceName)
+    private void GivenThereIsAFakeConsulServiceDiscoveryProvider(int port, [CallerMemberName] string serviceName = null)
     {
         handler.GivenThereIsAServiceRunningOn(port, async context =>
         {

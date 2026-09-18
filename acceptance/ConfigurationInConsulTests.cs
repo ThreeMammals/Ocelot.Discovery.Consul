@@ -4,10 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Ocelot.Configuration.File;
 using Ocelot.DependencyInjection;
-using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
-using TestStack.BDDfy;
 
 namespace Ocelot.Discovery.Consul.Acceptance;
 
@@ -21,21 +19,19 @@ public sealed class ConfigurationInConsulTests : ConsulSteps
     [Trait("PR", "153")] // https://github.com/ThreeMammals/Ocelot/pull/153
     [Trait("Release", "2.0.4")] // https://github.com/ThreeMammals/Ocelot/releases/tag/2.0.4
     [Trait("Commit", "48b5a32")] // https://github.com/ThreeMammals/Ocelot/commit/48b5a326768b695f988e105967e39d77f45e3811
-    public void Should_return_response_200_with_simple_url_when_using_jsonserialized_cache()
+    public async Task Should_return_response_200_with_simple_url_when_using_jsonserialized_cache()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
         var route = GivenDefaultRoute(servicePort);
         var configuration = GivenDiscoveryConfiguration([route], consulPort);
-        var serviceName = ServiceName();
-        this.Given(x => GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort, serviceName))
-            .And(x => GivenThereIsAServiceRunningOn(servicePort, "Hello from Charalampos"))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsulToStoreConfigAndJsonSerializedCache))
-            .When(x => WhenIGetUrlOnTheApiGateway("/"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Charalampos"))
-        .BDDfy();
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenThereIsAServiceRunningOn(servicePort, "Hello from Charalampos");
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsulToStoreConfigAndJsonSerializedCache);
+        await WhenIGetUrlOnTheApiGateway("/");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Charalampos");
     }
 
     private static void WithConsulToStoreConfigAndJsonSerializedCache(IServiceCollection services)

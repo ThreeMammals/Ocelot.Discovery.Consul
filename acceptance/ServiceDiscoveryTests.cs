@@ -13,11 +13,9 @@ using Ocelot.LoadBalancer.Interfaces;
 using Ocelot.Logging;
 using Ocelot.ServiceDiscovery.Providers;
 using Ocelot.Testing.LoadBalancer;
-using System.Net;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using TestStack.BDDfy;
 
 namespace Ocelot.Discovery.Consul.Acceptance;
 
@@ -45,24 +43,24 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "28")] // https://github.com/ThreeMammals/Ocelot/pull/28
     [Trait("Release", "1.2.0")] // https://github.com/ThreeMammals/Ocelot/releases/tag/1.2.0
     [Trait("Commit", "9e9303c")] // https://github.com/ThreeMammals/Ocelot/commit/9e9303c25f2efa8be4ac6e6687c06362e10d8bab
-    public void ShouldDiscoverServicesInConsulAndLoadBalanceByLeastConnectionWhenConfigInRoute()
+    public async Task ShouldDiscoverServicesInConsulAndLoadBalanceByLeastConnectionWhenConfigInRoute()
     {
-        const string serviceName = "product";
+        const string ServiceName = "product";
         var consulPort = PortFinder.GetRandomPort();
         var ports = PortFinder.GetPorts(2);
-        var serviceEntries = ports.Select(port => GivenServiceEntry(port, serviceName: serviceName)).ToArray();
-        var route = GivenDiscoveryRoute(serviceName: serviceName, loadBalancerType: nameof(LeastConnection));
+        var serviceEntries = ports.Select(port => GivenServiceEntry(port, serviceName: ServiceName)).ToArray();
+        var route = GivenDiscoveryRoute(serviceName: ServiceName, loadBalancerType: nameof(LeastConnection));
         var configuration = GivenDiscoveryConfiguration([route], consulPort);
         var urls = ports.Select(DownstreamUrl).ToArray();
-        this.Given(x => GivenMultipleServiceInstancesAreRunning(urls, serviceName))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntries))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGatewayConcurrently("/", 50))
-            .Then(x => ThenAllServicesShouldHaveBeenCalledTimes(50))
-            .And(x => ThenAllServicesCalledRealisticAmountOfTimes(/*25*/24, /*25*/26)) // TODO Check strict assertion
-        .BDDfy();
+        GivenMultipleServiceInstancesAreRunning(urls, ServiceName);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntries);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently("/", 50));
+        ThenAllServicesShouldHaveBeenCalledTimes(50);
+        ThenAllServicesCalledRealisticAmountOfTimes(/*25*/24, /*25*/26); // TODO Check strict assertion
     }
 
     [Fact]
@@ -70,33 +68,35 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "195")] // https://github.com/ThreeMammals/Ocelot/pull/195
     [Trait("Release", "2.0.9")] // https://github.com/ThreeMammals/Ocelot/releases/tag/2.0.9
     [Trait("Commit", "6992f9e")] // https://github.com/ThreeMammals/Ocelot/commit/6992f9e113de969d4dca0fcab7adb9a730322b00
-    public void ShouldSendRequestToServiceAfterItBecomesAvailableInConsul()
+    public async Task ShouldSendRequestToServiceAfterItBecomesAvailableInConsul()
     {
-        const string serviceName = "product";
+        const string ServiceName = "product";
         var consulPort = PortFinder.GetRandomPort();
         var ports = PortFinder.GetPorts(2);
-        var serviceEntries = ports.Select(port => GivenServiceEntry(port, serviceName: serviceName)).ToArray();
-        var route = GivenDiscoveryRoute(serviceName: serviceName);
+        var serviceEntries = ports.Select(port => GivenServiceEntry(port, serviceName: ServiceName)).ToArray();
+        var route = GivenDiscoveryRoute(serviceName: ServiceName);
         var configuration = GivenDiscoveryConfiguration([route], consulPort);
         var urls = ports.Select(DownstreamUrl).ToArray();
-        this.Given(_ => GivenMultipleServiceInstancesAreRunning(urls, serviceName))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntries))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .And(x => WhenIGetUrlOnTheApiGatewayConcurrently("/", 10))
-            .And(x => ThenAllServicesShouldHaveBeenCalledTimes(10))
-            .And(x => ThenAllServicesCalledRealisticAmountOfTimes(/*5*/4, /*5*/6)) // TODO Check strict assertion
-            .And(x => x.WhenIRemoveAService(serviceEntries[1])) // 2nd entry
-            .And(x => x.GivenIResetCounters())
-            .And(x => WhenIGetUrlOnTheApiGatewayConcurrently("/", 10))
-            .And(x => ThenServicesShouldHaveBeenCalledTimes(10, 0)) // 2nd is offline
-            .And(x => x.WhenIAddAServiceBackIn(serviceEntries[1])) // 2nd entry
-            .And(x => x.GivenIResetCounters())
-            .When(x => WhenIGetUrlOnTheApiGatewayConcurrently("/", 10))
-            .Then(x => ThenAllServicesShouldHaveBeenCalledTimes(10))
-            .And(x => ThenAllServicesCalledRealisticAmountOfTimes(/*5*/4, /*5*/6)) // TODO Check strict assertion
-        .BDDfy();
+        GivenMultipleServiceInstancesAreRunning(urls, ServiceName);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntries);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently("/", 10));
+        ThenAllServicesShouldHaveBeenCalledTimes(10);
+        ThenAllServicesCalledRealisticAmountOfTimes(/*5*/4, /*5*/6); // TODO Check strict assertion
+        WhenIRemoveAService(serviceEntries[1]); // 2nd entry
+        GivenIResetCounters();
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently("/", 10));
+        ThenServicesShouldHaveBeenCalledTimes(10, 0); // 2nd is offline
+        WhenIAddAServiceBackIn(serviceEntries[1]); // 2nd entry
+        GivenIResetCounters();
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently("/", 10));
+        ThenAllServicesShouldHaveBeenCalledTimes(10);
+        ThenAllServicesCalledRealisticAmountOfTimes(/*5*/4, /*5*/6); // TODO Check strict assertion
     }
 
     private static readonly string[] VersionV1Tags = ["version-v1"];
@@ -108,23 +108,22 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "211")]  // https://github.com/ThreeMammals/Ocelot/pull/211
     [Trait("Release", "3.0.0")] // https://github.com/ThreeMammals/Ocelot/releases/tag/3.0.0
     [Trait("Commit", "9d0a7f5")] // https://github.com/ThreeMammals/Ocelot/commit/9d0a7f5961e48a9340e6552e6738dda954218cfa
-    public void ShouldHandleRequestToConsulForDownstreamServiceAndMakeRequest()
+    public async Task ShouldHandleRequestToConsulForDownstreamServiceAndMakeRequest()
     {
-        const string serviceName = "web";
+        const string ServiceName = "web";
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
-        var serviceEntryOne = GivenServiceEntry(servicePort, "localhost", "web_90_0_2_224_8080", VersionV1Tags, serviceName);
-        var route = GivenDiscoveryRoute("/api/home", "/home", serviceName, httpMethods: GetVsOptionsMethods);
+        var serviceEntryOne = GivenServiceEntry(servicePort, "localhost", "web_90_0_2_224_8080", VersionV1Tags, ServiceName);
+        var route = GivenDiscoveryRoute("/api/home", "/home", ServiceName, httpMethods: GetVsOptionsMethods);
         var configuration = GivenDiscoveryConfiguration([route], consulPort);
-        this.Given(x => GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/api/home", "Hello from Laura"))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntryOne))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGateway("/home"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-        .BDDfy();
+        GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/api/home", "Hello from Laura");
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntryOne);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await WhenIGetUrlOnTheApiGateway("/home");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Laura");
     }
 
     [Fact]
@@ -132,28 +131,27 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "307")]  // https://github.com/ThreeMammals/Ocelot/pull/307
     [Trait("Release", "5.5.1")] // https://github.com/ThreeMammals/Ocelot/releases/tag/5.5.1
     [Trait("Commit", "982eebf")] // https://github.com/ThreeMammals/Ocelot/commit/982eebfc74217a5fef34321c97f91cd1afaa9bed
-    public void ShouldUseAclTokenToMakeRequestToConsul()
+    public async Task ShouldUseAclTokenToMakeRequestToConsul()
     {
-        const string serviceName = "web";
+        const string ServiceName = "web";
         const string token = "abctoken";
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
-        var serviceEntry = GivenServiceEntry(servicePort, "localhost", "web_90_0_2_224_8080", VersionV1Tags, serviceName);
-        var route = GivenDiscoveryRoute("/api/home", "/home", serviceName, httpMethods: GetVsOptionsMethods);
+        var serviceEntry = GivenServiceEntry(servicePort, "localhost", "web_90_0_2_224_8080", VersionV1Tags, ServiceName);
+        var route = GivenDiscoveryRoute("/api/home", "/home", ServiceName, httpMethods: GetVsOptionsMethods);
 
         var configuration = GivenDiscoveryConfiguration([route], consulPort);
         configuration.GlobalConfiguration.ServiceDiscoveryProvider.Token = token;
 
-        this.Given(x => GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/api/home", "Hello from Laura"))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntry))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGateway("/home"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-            .And(x => x.ThenTheTokenIs(token))
-        .BDDfy();
+        GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/api/home", "Hello from Laura");
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntry);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await WhenIGetUrlOnTheApiGateway("/home");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Laura");
+        ThenTheTokenIs(token);
     }
 
     [Fact]
@@ -161,12 +159,12 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "351")]  // https://github.com/ThreeMammals/Ocelot/pull/351
     [Trait("Release", "7.0.1")] // https://github.com/ThreeMammals/Ocelot/releases/tag/7.0.1
     [Trait("Commit", "1e2e953")] // https://github.com/ThreeMammals/Ocelot/commit/1e2e953b2cef4431b42288a9d89b1d97eff757b4
-    public void ShouldHandleRequestToConsulForDownstreamServiceAndMakeRequestWhenDynamicRoutingWithNoRoutes()
+    public async Task ShouldHandleRequestToConsulForDownstreamServiceAndMakeRequestWhenDynamicRoutingWithNoRoutes()
     {
-        const string serviceName = "web";
+        const string ServiceName = "web";
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
-        var serviceEntry = GivenServiceEntry(servicePort, "localhost", "web_90_0_2_224_8080", VersionV1Tags, serviceName);
+        var serviceEntry = GivenServiceEntry(servicePort, "localhost", "web_90_0_2_224_8080", VersionV1Tags, ServiceName);
 
         var configuration = GivenDiscoveryConfiguration(NoRoutes, consulPort); // no routes
         configuration.GlobalConfiguration.DownstreamScheme = "http";
@@ -177,15 +175,14 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
             UseTracing = false,
         };
 
-        this.Given(x => GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/something", "Hello from Laura"))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntry))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGateway("/web/something"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-        .BDDfy();
+        GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/something", "Hello from Laura");
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntry);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await WhenIGetUrlOnTheApiGateway("/web/something");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Laura");
     }
 
     [Fact]
@@ -193,27 +190,27 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "351")]  // https://github.com/ThreeMammals/Ocelot/pull/351
     [Trait("Release", "7.0.1")] // https://github.com/ThreeMammals/Ocelot/releases/tag/7.0.1
     [Trait("Commit", "1e2e953")] // https://github.com/ThreeMammals/Ocelot/commit/1e2e953b2cef4431b42288a9d89b1d97eff757b4
-    public void ShouldUseConsulServiceDiscoveryAndLoadBalanceRequestWhenDynamicRoutingWithNoRoutes()
+    public async Task ShouldUseConsulServiceDiscoveryAndLoadBalanceRequestWhenDynamicRoutingWithNoRoutes()
     {
-        const string serviceName = "product";
+        const string ServiceName = "product";
         var consulPort = PortFinder.GetRandomPort();
         var ports = PortFinder.GetPorts(2);
-        var serviceEntries = ports.Select(port => GivenServiceEntry(port, serviceName: serviceName)).ToArray();
+        var serviceEntries = ports.Select(port => GivenServiceEntry(port, serviceName: ServiceName)).ToArray();
 
         var configuration = GivenDiscoveryConfiguration(NoRoutes, consulPort); // !!!
         configuration.GlobalConfiguration.LoadBalancerOptions = new() { Type = nameof(LeastConnection) };
         configuration.GlobalConfiguration.DownstreamScheme = "http";
 
         var urls = ports.Select(DownstreamUrl).ToArray();
-        this.Given(x => GivenMultipleServiceInstancesAreRunning(urls, serviceName))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntries))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGatewayConcurrently($"/{serviceName}/", 50))
-            .Then(x => ThenAllServicesShouldHaveBeenCalledTimes(50))
-            .And(x => ThenAllServicesCalledRealisticAmountOfTimes(/*25*/24, /*25*/26)) // TODO Check strict assertion
-        .BDDfy();
+        GivenMultipleServiceInstancesAreRunning(urls, ServiceName);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntries);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently($"/{ServiceName}/", 50));
+        ThenAllServicesShouldHaveBeenCalledTimes(50);
+        ThenAllServicesCalledRealisticAmountOfTimes(/*25*/24, /*25*/26); // TODO Check strict assertion
     }
 
     [Fact]
@@ -221,25 +218,24 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "392")]  // https://github.com/ThreeMammals/Ocelot/pull/392
     [Trait("Release", "7.0.5")] // https://github.com/ThreeMammals/Ocelot/releases/tag/7.0.5
     [Trait("Commit", "0f2a9c1")] // https://github.com/ThreeMammals/Ocelot/commit/0f2a9c1d0d22d11697d9ebaabd75316ab4465678
-    public void ShouldPollConsulForDownstreamServiceAndMakeRequest()
+    public async Task ShouldPollConsulForDownstreamServiceAndMakeRequest()
     {
-        const string serviceName = "web";
+        const string ServiceName = "web";
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort();
-        var serviceEntry = GivenServiceEntry(servicePort, "localhost", $"web_90_0_2_224_{servicePort}", VersionV1Tags, serviceName);
-        var route = GivenDiscoveryRoute("/api/home", "/home", serviceName, httpMethods: GetVsOptionsMethods);
+        var serviceEntry = GivenServiceEntry(servicePort, "localhost", $"web_90_0_2_224_{servicePort}", VersionV1Tags, ServiceName);
+        var route = GivenDiscoveryRoute("/api/home", "/home", ServiceName, httpMethods: GetVsOptionsMethods);
         var configuration = GivenDiscoveryConfiguration([route], consulPort, provider: nameof(PollConsul));
         configuration.GlobalConfiguration.ServiceDiscoveryProvider.PollingInterval = 0; // start immediately
 
-        this.Given(x => GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/api/home", "Hello from Laura"))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntry))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGatewayWaitingForTheResponseToBeOk("/home"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Laura"))
-        .BDDfy();
+        GivenThereIsAServiceRunningOn(DownstreamUrl(servicePort), "/api/home", "Hello from Laura");
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntry);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await WhenIGetUrlOnTheApiGatewayWaitingForTheResponseToBeOk("/home");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Laura");
     }
 
     private async Task WhenIGetUrlOnTheApiGatewayWaitingForTheResponseToBeOk(string url)
@@ -262,25 +258,25 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [InlineData(nameof(RoundRobin))]
     [InlineData(nameof(LeastConnection))]
     [InlineData(nameof(CookieStickySessions))]
-    public void ShouldUseConsulServiceDiscoveryWhenThereAreTwoUpstreamHosts(string loadBalancerType)
+    public async Task ShouldUseConsulServiceDiscoveryWhenThereAreTwoUpstreamHosts(string loadBalancerType)
     {
         // Simulate two DIFFERENT downstream services (e.g. product services for US and EU markets)
         // with different ServiceNames (e.g. product-us and product-eu),
         // UpstreamHost is used to determine which ServiceName to use when making a request to Consul (e.g. Host: us-shop goes to product-us) 
-        const string serviceNameUS = "product-us";
-        const string serviceNameEU = "product-eu";
+        const string ServiceNameUS = "product-us";
+        const string ServiceNameEU = "product-eu";
         string[] tagsUS = ["US"], tagsEU = ["EU"];
         var consulPort = PortFinder.GetRandomPort();
         var servicePortUS = PortFinder.GetRandomPort();
         var servicePortEU = PortFinder.GetRandomPort();
         const string upstreamHostUS = "us-shop";
         const string upstreamHostEU = "eu-shop";
-        const string responseBodyUS = "Phone chargers with US plug";
-        const string responseBodyEU = "Phone chargers with EU plug";
-        var serviceEntryUS = GivenServiceEntry(servicePortUS, serviceName: serviceNameUS, tags: tagsUS);
-        var serviceEntryEU = GivenServiceEntry(servicePortEU, serviceName: serviceNameEU, tags: tagsEU);
-        var routeUS = GivenDiscoveryRoute("/products", "/", serviceNameUS, loadBalancerType, upstreamHostUS);
-        var routeEU = GivenDiscoveryRoute("/products", "/", serviceNameEU, loadBalancerType, upstreamHostEU);
+        const string ResponseBodyUS = "Phone chargers with US plug";
+        const string ResponseBodyEU = "Phone chargers with EU plug";
+        var serviceEntryUS = GivenServiceEntry(servicePortUS, serviceName: ServiceNameUS, tags: tagsUS);
+        var serviceEntryEU = GivenServiceEntry(servicePortEU, serviceName: ServiceNameEU, tags: tagsEU);
+        var routeUS = GivenDiscoveryRoute("/products", "/", ServiceNameUS, loadBalancerType, upstreamHostUS);
+        var routeEU = GivenDiscoveryRoute("/products", "/", ServiceNameEU, loadBalancerType, upstreamHostEU);
         var configuration = GivenDiscoveryConfiguration([routeUS, routeEU], consulPort);
         bool isStickySession = loadBalancerType == nameof(CookieStickySessions);
         var sessionCookieUS = isStickySession ? new CookieHeaderValue(routeUS.LoadBalancerOptions.Key, Guid.NewGuid().ToString()) : null;
@@ -288,33 +284,28 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
 
         // Ocelot request for http://us-shop/ should find 'product-us' in Consul, call /products and return "Phone chargers with US plug"
         // Ocelot request for http://eu-shop/ should find 'product-eu' in Consul, call /products and return "Phone chargers with EU plug"
-        this.Given(x => handler.GivenThereIsAServiceRunningOn(servicePortUS, "/products", MapGet("/products", responseBodyUS)))
-            .Given(x => handler.GivenThereIsAServiceRunningOn(servicePortEU, "/products", MapGet("/products", responseBodyEU)))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntryUS, serviceEntryEU))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => x.WhenIGetUrlOfRequestComingFromHost(routeUS.UpstreamPathTemplate, upstreamHostUS, sessionCookieUS),
-                    "When I get US shop for the first time")
-            .Then(x => x.ThenConsulShouldHaveBeenCalledTimes(1))
-            .And(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe(responseBodyUS))
-            .When(x => x.WhenIGetUrlOfRequestComingFromHost(routeEU.UpstreamPathTemplate, upstreamHostEU, sessionCookieEU),
-                    "When I get EU shop for the first time")
-            .Then(x => x.ThenConsulShouldHaveBeenCalledTimes(2))
-            .And(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe(responseBodyEU))
-            .When(x => x.WhenIGetUrlOfRequestComingFromHost(routeUS.UpstreamPathTemplate, upstreamHostUS, sessionCookieUS),
-                    "When I get US shop again")
-            .Then(x => x.ThenConsulShouldHaveBeenCalledTimes(isStickySession ? 2 : 3)) // sticky sessions use cache, so Consul shouldn't be called
-            .And(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe(responseBodyUS))
-            .When(x => x.WhenIGetUrlOfRequestComingFromHost(routeEU.UpstreamPathTemplate, upstreamHostEU, sessionCookieEU),
-                    "When I get EU shop again")
-            .Then(x => x.ThenConsulShouldHaveBeenCalledTimes(isStickySession ? 2 : 4)) // sticky sessions use cache, so Consul shouldn't be called
-            .And(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe(responseBodyEU))
-        .BDDfy();
+        handler.GivenThereIsAServiceRunningOn(servicePortUS, "/products", MapGet("/products", ResponseBodyUS));
+        handler.GivenThereIsAServiceRunningOn(servicePortEU, "/products", MapGet("/products", ResponseBodyEU));
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntryUS, serviceEntryEU);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await WhenIGetUrlOfRequestComingFromHost(routeUS.UpstreamPathTemplate, upstreamHostUS, sessionCookieUS); // "When I get US shop for the first time"
+        ThenConsulShouldHaveBeenCalledTimes(1);
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync(ResponseBodyUS);
+        await WhenIGetUrlOfRequestComingFromHost(routeEU.UpstreamPathTemplate, upstreamHostEU, sessionCookieEU); // "When I get EU shop for the first time"
+        ThenConsulShouldHaveBeenCalledTimes(2);
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync(ResponseBodyEU);
+        await WhenIGetUrlOfRequestComingFromHost(routeUS.UpstreamPathTemplate, upstreamHostUS, sessionCookieUS); // "When I get US shop again"
+        ThenConsulShouldHaveBeenCalledTimes(isStickySession ? 2 : 3); // sticky sessions use cache, so Consul shouldn't be called
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync(ResponseBodyUS);
+        await WhenIGetUrlOfRequestComingFromHost(routeEU.UpstreamPathTemplate, upstreamHostEU, sessionCookieEU); // "When I get EU shop again"
+        ThenConsulShouldHaveBeenCalledTimes(isStickySession ? 2 : 4); // sticky sessions use cache, so Consul shouldn't be called
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync(ResponseBodyEU);
     }
 
     [Fact]
@@ -324,41 +315,40 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "2067")] // https://github.com/ThreeMammals/Ocelot/pull/2067
     [Trait("Release", "23.3.0")] // https://github.com/ThreeMammals/Ocelot/releases/tag/23.3.0
     [Trait("Commit", "34cb3eb")] // https://github.com/ThreeMammals/Ocelot/commit/34cb3ebf9768ac8cd8d2c75139da2123e23fdba4
-    public void ShouldReturnServiceAddressByOverriddenServiceBuilderWhenThereIsANode()
+    public async Task ShouldReturnServiceAddressByOverriddenServiceBuilderWhenThereIsANode()
     {
-        const string serviceName = "OpenTestService";
+        const string ServiceName = "OpenTestService";
         string[] methods = [HttpMethods.Post, HttpMethods.Get];
         var consulPort = PortFinder.GetRandomPort();
         var servicePort = PortFinder.GetRandomPort(); // 9999
         var serviceEntry = GivenServiceEntry(servicePort,
             id: "OPEN_TEST_01",
-            serviceName: serviceName,
-            tags: [serviceName]);
+            serviceName: ServiceName,
+            tags: [ServiceName]);
         var serviceNode = new Node() { Name = "n1" }; // cornerstone of the bug
         serviceEntry.Node = serviceNode;
-        var route = GivenDiscoveryRoute("/api/{url}", "/open/{url}", serviceName, httpMethods: methods);
+        var route = GivenDiscoveryRoute("/api/{url}", "/open/{url}", ServiceName, httpMethods: methods);
         var configuration = GivenDiscoveryConfiguration([route], consulPort);
 
-        this.Given(x => GivenThereIsAServiceRunningOnPath(servicePort, "/api/home", "Hello from Raman"))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntry))
-            .And(x => x.GivenTheServiceNodesAreRegisteredWithConsul(serviceNode))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul)) // default services registration results with the bug: "n1" host issue
-            .When(x => WhenIGetUrlOnTheApiGateway("/open/home"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.BadGateway))
-            .And(x => ThenTheResponseBodyShouldBe(""))
-            .And(x => ThenConsulShouldHaveBeenCalledTimes(1))
-            .And(x => ThenConsulNodesShouldHaveBeenCalledTimes(1))
+        GivenThereIsAServiceRunningOnPath(servicePort, "/api/home", "Hello from Raman");
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntry);
+        GivenTheServiceNodesAreRegisteredWithConsul(serviceNode);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul); // default services registration results with the bug: "n1" host issue
+        await WhenIGetUrlOnTheApiGateway("/open/home");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.BadGateway);
+        await ThenTheResponseBodyShouldBeEmpty();
+        ThenConsulShouldHaveBeenCalledTimes(1);
+        ThenConsulNodesShouldHaveBeenCalledTimes(1);
 
-            // Override default service builder
-            .Given(x => GivenOcelotIsRunning(WithConsulServiceBuilder))
-            .When(x => WhenIGetUrlOnTheApiGateway("/open/home"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("Hello from Raman"))
-            .And(x => ThenConsulShouldHaveBeenCalledTimes(2))
-            .And(x => ThenConsulNodesShouldHaveBeenCalledTimes(2))
-        .BDDfy();
+        // Override default service builder
+        GivenOcelotIsRunning(WithConsulServiceBuilder);
+        await WhenIGetUrlOnTheApiGateway("/open/home");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("Hello from Raman");
+        ThenConsulShouldHaveBeenCalledTimes(2);
+        ThenConsulNodesShouldHaveBeenCalledTimes(2);
     }
 
     private static readonly string[] Bug2119ServiceNames = new string[] { "ProjectsService", "CustomersService" };
@@ -387,7 +377,7 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [InlineData(nameof(NoLoadBalancer))]
     [InlineData(nameof(RoundRobin))]
     [InlineData(nameof(LeastConnection))] // original scenario
-    public void ShouldReturnDifferentServicesWhenThereAre2SequentialRequestsToDifferentServices(string loadBalancer)
+    public async Task ShouldReturnDifferentServicesWhenThereAre2SequentialRequestsToDifferentServices(string loadBalancer)
     {
         var consulPort = PortFinder.GetRandomPort();
         var ports = PortFinder.GetPorts(Bug2119ServiceNames.Length);
@@ -398,29 +388,28 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
         route1.UpstreamHttpMethod = route2.UpstreamHttpMethod = new() { HttpMethods.Get, HttpMethods.Post, HttpMethods.Put, HttpMethods.Delete };
         var configuration = GivenDiscoveryConfiguration([route1, route2], consulPort);
         var urls = ports.Select(DownstreamUrl).ToArray();
-        this.Given(x => GivenMultipleServiceInstancesAreRunning(urls, Bug2119ServiceNames))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(service1, service2))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
+        GivenMultipleServiceInstancesAreRunning(urls, Bug2119ServiceNames);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(service1, service2);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
 
-            // Step 1
-            .When(x => WhenIGetUrlOnTheApiGateway("/projects/api/projects"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenServiceShouldHaveBeenCalledTimes(0, 1))
-            .And(x => x.ThenTheResponseBodyShouldBe($"1^:^{Bug2119ServiceNames[0]}")) // !
+        // Step 1
+        await WhenIGetUrlOnTheApiGateway("/projects/api/projects");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        ThenServiceShouldHaveBeenCalledTimes(0, 1);
+        ThenTheResponseBodyShouldBe($"1^:^{Bug2119ServiceNames[0]}"); // !
 
-            // Step 2
-            .When(x => WhenIGetUrlOnTheApiGateway("/customers/api/customers"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenServiceShouldHaveBeenCalledTimes(1, 1))
-            .And(x => x.ThenTheResponseBodyShouldBe($"1^:^{Bug2119ServiceNames[1]}")) // !!
+        // Step 2
+        await WhenIGetUrlOnTheApiGateway("/customers/api/customers");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        ThenServiceShouldHaveBeenCalledTimes(1, 1);
+        ThenTheResponseBodyShouldBe($"1^:^{Bug2119ServiceNames[1]}"); // !!
 
-            // Finally
-            .Then(x => ThenAllStatusCodesShouldBe(HttpStatusCode.OK))
-            .And(x => ThenAllServicesShouldHaveBeenCalledTimes(2))
-            .And(x => ThenServicesShouldHaveBeenCalledTimes(1, 1))
-        .BDDfy();
+        // Finally
+        ThenAllStatusCodesShouldBe(HttpStatusCode.OK);
+        ThenAllServicesShouldHaveBeenCalledTimes(2);
+        ThenServicesShouldHaveBeenCalledTimes(1, 1);
     }
 
     [Theory]
@@ -433,7 +422,7 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [InlineData(true, nameof(LeastConnectionAnalyzer))] // extended scenario using analyzer
     [InlineData(false, nameof(RoundRobin))]
     [InlineData(true, nameof(RoundRobinAnalyzer))]
-    public void ShouldReturnDifferentServicesWhenSequentiallyRequestingToDifferentServices(bool withAnalyzer, string loadBalancer)
+    public async Task ShouldReturnDifferentServicesWhenSequentiallyRequestingToDifferentServices(bool withAnalyzer, string loadBalancer)
     {
         var consulPort = PortFinder.GetRandomPort();
         var ports = PortFinder.GetPorts(Bug2119ServiceNames.Length);
@@ -444,7 +433,7 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
         route1.UpstreamHttpMethod = route2.UpstreamHttpMethod = [HttpMethods.Get, HttpMethods.Post, HttpMethods.Put, HttpMethods.Delete];
         var configuration = GivenDiscoveryConfiguration([route1, route2], consulPort);
         var urls = ports.Select(DownstreamUrl).ToArray();
-        Func<int, Task> requestToProjectsAndThenRequestToCustomersAndAssert = async (i) =>
+        async Task RequestToProjectsAndThenRequestToCustomersAndAssert(int i)
         {
             // Step 1
             int count = i + 1;
@@ -460,19 +449,18 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
             ThenServiceShouldHaveBeenCalledTimes(1, count);
             ThenTheResponseBodyShouldBe($"{count}^:^{Bug2119ServiceNames[1]}", $"i is {i}");
             Responses[(2 * i) + 1] = response;
-        };
-        this.Given(x => GivenMultipleServiceInstancesAreRunning(urls, Bug2119ServiceNames)) // service names as responses
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(service1, service2))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(withAnalyzer ? WithLbAnalyzer(loadBalancer) : WithConsul))
-            .When(x => WhenIDoActionMultipleTimes(50, requestToProjectsAndThenRequestToCustomersAndAssert))
-            .Then(x => ThenAllStatusCodesShouldBe(HttpStatusCode.OK))
-            .And(x => x.ThenResponsesShouldHaveBodyFromDifferentServices(ports, Bug2119ServiceNames)) // !!!
-            .And(x => ThenAllServicesShouldHaveBeenCalledTimes(100))
-            .And(x => ThenAllServicesCalledRealisticAmountOfTimes(50, 50))
-            .And(x => ThenServicesShouldHaveBeenCalledTimes(50, 50)) // strict assertion
-        .BDDfy();
+        }
+        GivenMultipleServiceInstancesAreRunning(urls, Bug2119ServiceNames); // service names as responses
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(service1, service2);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(withAnalyzer ? WithLbAnalyzer(loadBalancer) : WithConsul);
+        await WhenIDoActionMultipleTimes(50, RequestToProjectsAndThenRequestToCustomersAndAssert);
+        ThenAllStatusCodesShouldBe(HttpStatusCode.OK);
+        ThenResponsesShouldHaveBodyFromDifferentServices(ports, Bug2119ServiceNames); // !!!
+        ThenAllServicesShouldHaveBeenCalledTimes(100);
+        ThenAllServicesCalledRealisticAmountOfTimes(50, 50);
+        ThenServicesShouldHaveBeenCalledTimes(50, 50); // strict assertion
     }
 
     [Theory]
@@ -485,7 +473,7 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [InlineData(true, nameof(LeastConnectionAnalyzer))] // extended scenario using analyzer
     [InlineData(false, nameof(RoundRobin))]
     [InlineData(true, nameof(RoundRobinAnalyzer))]
-    public void ShouldReturnDifferentServicesWhenConcurrentlyRequestingToDifferentServices(bool withAnalyzer, string loadBalancer)
+    public async Task ShouldReturnDifferentServicesWhenConcurrentlyRequestingToDifferentServices(bool withAnalyzer, string loadBalancer)
     {
         const int total = 100; // concurrent requests
         var consulPort = PortFinder.GetRandomPort();
@@ -497,20 +485,20 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
         route1.UpstreamHttpMethod = route2.UpstreamHttpMethod = [HttpMethods.Get, HttpMethods.Post, HttpMethods.Put, HttpMethods.Delete];
         var configuration = GivenDiscoveryConfiguration([route1, route2], consulPort);
         var urls = ports.Select(DownstreamUrl).ToArray();
-        this.Given(x => GivenMultipleServiceInstancesAreRunning(urls, Bug2119ServiceNames)) // service names as responses
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(service1, service2))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(withAnalyzer ? WithLbAnalyzer(loadBalancer) : WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGatewayConcurrently(total, "/projects/api/projects", "/customers/api/customers"))
-            .Then(x => ThenAllStatusCodesShouldBe(HttpStatusCode.OK))
-            .And(x => x.ThenResponsesShouldHaveBodyFromDifferentServices(ports, Bug2119ServiceNames)) // !!!
-            .And(x => ThenAllServicesShouldHaveBeenCalledTimes(total))
-            .And(x => ThenServiceCountersShouldMatchLeasingCounters((ILoadBalancerAnalyzer)_lbAnalyzers[0], ports, 50)) // ProjectsService
-            .And(x => ThenServiceCountersShouldMatchLeasingCounters((ILoadBalancerAnalyzer)_lbAnalyzers[1], ports, 50)) // CustomersService
-            .And(x => ThenAllServicesCalledRealisticAmountOfTimes(Bottom(total, ports.Length), Top(total, ports.Length)))
-            .And(x => ThenServicesShouldHaveBeenCalledTimes(50, 50)) // strict assertion
-        .BDDfy();
+        GivenMultipleServiceInstancesAreRunning(urls, Bug2119ServiceNames); // service names as responses
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(service1, service2);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(withAnalyzer ? WithLbAnalyzer(loadBalancer) : WithConsul);
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently(total, "/projects/api/projects", "/customers/api/customers"));
+        ThenAllStatusCodesShouldBe(HttpStatusCode.OK);
+        ThenResponsesShouldHaveBodyFromDifferentServices(ports, Bug2119ServiceNames); // !!!
+        ThenAllServicesShouldHaveBeenCalledTimes(total);
+        ThenServiceCountersShouldMatchLeasingCounters((ILoadBalancerAnalyzer)_lbAnalyzers[0], ports, 50); // ProjectsService
+        ThenServiceCountersShouldMatchLeasingCounters((ILoadBalancerAnalyzer)_lbAnalyzers[1], ports, 50); // CustomersService
+        ThenAllServicesCalledRealisticAmountOfTimes(Bottom(total, ports.Length), Top(total, ports.Length));
+        ThenServicesShouldHaveBeenCalledTimes(50, 50); // strict assertion
     }
 
     [Fact]
@@ -519,7 +507,7 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     [Trait("PR", "2324")] // https://github.com/ThreeMammals/Ocelot/pull/2324
     [Trait("Release", "24.1.0")] // https://github.com/ThreeMammals/Ocelot/releases/tag/24.1.0
     [Trait("Commit", "f758ba7")] // https://github.com/ThreeMammals/Ocelot/commit/f758ba7b1b79054c455be72b17ef30419032cf72
-    public void ShouldApplyGlobalLoadBalancerOptionsForAllDynamicRoutes()
+    public async Task ShouldApplyGlobalLoadBalancerOptionsForAllDynamicRoutes()
     {
         var ports = PortFinder.GetPorts(5);
         var serviceName = TestName(); // ServiceName();
@@ -530,18 +518,17 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
         configuration.GlobalConfiguration.DownstreamScheme = Uri.UriSchemeHttp;
         configuration.Routes = []; // dynamic routing
         configuration.DynamicRoutes = []; // no dynamic routes, for ALL dynamic routes
-
         var urls = ports.Select(DownstreamUrl).ToArray();
-        this.Given(x => GivenMultipleServiceInstancesAreRunning(urls, serviceName))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort)))
-            .And(x => x.GivenTheServicesAreRegisteredWithConsul(serviceEntries))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGatewayConcurrently($"/{serviceName}/", 50))
-            .Then(x => ThenAllServicesShouldHaveBeenCalledTimes(50))
-            .And(x => ThenAllServicesCalledRealisticAmountOfTimes(9, 11)) // soft assertion
-            .And(x => ThenServicesShouldHaveBeenCalledTimes(10, 10, 10, 10, 10)) // distribution by RoundRobin algorithm, aka strict assertion
-        .BDDfy();
+        GivenMultipleServiceInstancesAreRunning(urls, serviceName);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
+        GivenTheServicesAreRegisteredWithConsul(serviceEntries);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently($"/{serviceName}/", 50));
+        ThenAllServicesShouldHaveBeenCalledTimes(50);
+        ThenAllServicesCalledRealisticAmountOfTimes(9, 11); // soft assertion
+        ThenServicesShouldHaveBeenCalledTimes(10, 10, 10, 10, 10); // distribution by RoundRobin algorithm, aka strict assertion
     }
 
     private Action<IServiceCollection> WithLbAnalyzer(string loadBalancer) => loadBalancer switch
@@ -649,7 +636,7 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
     private void GivenTheServicesAreRegisteredWithConsul(params ServiceEntry[] serviceEntries) => _consulServices.AddRange(serviceEntries);
     private void GivenTheServiceNodesAreRegisteredWithConsul(params Node[] nodes) => _consulNodes.AddRange(nodes);
 
-    [GeneratedRegex("/v1/health/service/(?<serviceName>[^/]+)", RegexOptions.Singleline, RegexGlobal.DefaultMatchTimeoutMilliseconds)]
+    [GeneratedRegex("/v1/health/service/(?<ServiceName>[^/]+)", RegexOptions.Singleline, RegexGlobal.DefaultMatchTimeoutMilliseconds)]
     private static partial Regex ServiceNameRegex();
 
     private void GivenThereIsAFakeConsulServiceDiscoveryProvider(string url)
@@ -672,7 +659,7 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
             int count = Interlocked.Increment(ref _counterConsul);
 
             // Use the parsed service name to filter the registered Consul services
-            var serviceName = pathMatch.Groups["serviceName"].Value;
+            var serviceName = pathMatch.Groups["ServiceName"].Value;
             var services = _consulServices.Where(x => x.Service.Service == serviceName).ToList();
             var json = JsonConvert.SerializeObject(services);
 

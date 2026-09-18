@@ -1,8 +1,6 @@
 ﻿using Consul;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
-using System.Net;
-using TestStack.BDDfy;
 
 namespace Ocelot.Discovery.Consul.Acceptance;
 
@@ -15,7 +13,7 @@ public sealed class TwoDownstreamServicesTests : ConsulSteps
     [Trait("PR", "197")] // https://github.com/ThreeMammals/Ocelot/pull/197
     [Trait("Release", "2.0.11")] // https://github.com/ThreeMammals/Ocelot/releases/tag/2.0.11
     [Trait("Commit", "31f526d")] // https://github.com/ThreeMammals/Ocelot/commit/31f526d3cd3576079acf1fb72dbc31f71211c494
-    public void Should_fix_issue_194()
+    public async Task Should_fix_issue_194()
     {
         var consulPort = PortFinder.GetRandomPort();
         var servicePort1 = PortFinder.GetRandomPort();
@@ -23,18 +21,17 @@ public sealed class TwoDownstreamServicesTests : ConsulSteps
         var route1 = GivenRoute(servicePort1, "/api/user/{user}", "/api/user/{user}");
         var route2 = GivenRoute(servicePort2, "/api/product/{product}", "/api/product/{product}");
         var configuration = GivenDiscoveryConfiguration([route1, route2], consulPort, scheme: Uri.UriSchemeHttps);
-        this.Given(x => x.GivenProductServiceIsRunning(servicePort1, "/api/user/info", HttpStatusCode.OK, "user"))
-            .And(x => x.GivenProductServiceIsRunning(servicePort2, "/api/product/info", HttpStatusCode.OK, "product"))
-            .And(x => x.GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort))
-            .And(x => GivenThereIsAConfiguration(configuration))
-            .And(x => GivenOcelotIsRunning(WithConsul))
-            .When(x => WhenIGetUrlOnTheApiGateway("/api/user/info?id=1"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("user"))
-            .When(x => WhenIGetUrlOnTheApiGateway("/api/product/info?id=1"))
-            .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
-            .And(x => ThenTheResponseBodyShouldBe("product"))
-        .BDDfy();
+        GivenProductServiceIsRunning(servicePort1, "/api/user/info", HttpStatusCode.OK, "user");
+        GivenProductServiceIsRunning(servicePort2, "/api/product/info", HttpStatusCode.OK, "product");
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await WhenIGetUrlOnTheApiGateway("/api/user/info?id=1");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("user");
+        await WhenIGetUrlOnTheApiGateway("/api/product/info?id=1");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        await ThenTheResponseBodyShouldBeAsync("product");
     }
 
     private void GivenThereIsAFakeConsulServiceDiscoveryProvider(int port)
