@@ -9,7 +9,7 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>CS1591</NoWarn>
     <!--Package properties-->
-    <Version>25.0.1</Version>
+    <Version>25.0.1.2-beta</Version>
     <PackageId>Ocelot.Discovery.Consul</PackageId>
     <PackageDescription>Provides Ocelot extensions to use Consul service discovery.</PackageDescription>
     <PackageReleaseNotes>https://github.com/ThreeMammals/Ocelot.Discovery.Consul/releases</PackageReleaseNotes>
@@ -31,7 +31,7 @@
     <None Include="..\README.md" Pack="true" PackagePath="\" Link="package\README.md" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Ocelot" Version="25.0.0" />
+    <PackageReference Include="Ocelot" Version="25.0.1" />
     <PackageReference Include="Consul" Version="1.8.0" />
   </ItemGroup>
   <ItemGroup>
