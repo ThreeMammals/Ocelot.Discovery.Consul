@@ -27,6 +27,9 @@ jobs:
         dotnet-version: 10.0.x
         dotnet-quality: 'ga'
 
+    - name: .NET Info
+      run: dotnet --info
+
     - name: Checkout
       uses: actions/checkout@v7 # https://github.com/actions/checkout
 
@@ -53,9 +56,12 @@ jobs:
         echo "GITHUB REF NAME is ${{ github.ref_name }}"
         echo "GITHUB SHA is ${{ github.sha }}"
         # Coverage by unit tests -> https://github.com/coverlet-coverage/coverlet
-        coverage_1st_folder=$(ls -d ./unit/TestResults/*/ | head -1)
-        echo "Detected first folder : $coverage_1st_folder"
-        coverage_file="${coverage_1st_folder%/}/coverage.cobertura.xml"
+        echo "::group::Listing files in ./unit/TestResults"
+        ls ./unit/TestResults/
+        echo "::endgroup::"
+        coverage_pattern="./unit/TestResults/coverage.cobertura.*.xml"
+        coverage_files=($coverage_pattern)
+        coverage_file="${coverage_files[0]}"
         echo "Detecting unit coverage file... -> $coverage_file"
         if [ -f "$coverage_file" ]; then
           echo Unit coverage file exists.
@@ -67,9 +73,12 @@ jobs:
           exit 1
         fi
         # Coverage by acceptance tests -> https://github.com/coverlet-coverage/coverlet
-        coverage_1st_folder=$(ls -d ./acceptance/TestResults/*/ | head -1)
-        echo "Detected first folder : $coverage_1st_folder"
-        coverage_file="${coverage_1st_folder%/}/coverage.cobertura.xml"
+        echo "::group::Listing files in ./acceptance/TestResults"
+        ls ./acceptance/TestResults/
+        echo "::endgroup::"
+        coverage_pattern="./acceptance/TestResults/coverage.cobertura.*.xml"
+        coverage_files=($coverage_pattern)
+        coverage_file="${coverage_files[0]}"
         echo "Detecting acceptance coverage file... -> $coverage_file"
         if [ -f "$coverage_file" ]; then
           echo Acceptance coverage file exists.
@@ -80,6 +89,7 @@ jobs:
           echo "ACCEPTANCE_COVERAGE_FILE_EXISTS=false" >> $GITHUB_OUTPUT
           exit 1
         fi
+
     - name: Install tools
       run: |
         # .NET tools aka .config/dotnet-tools.json
@@ -127,18 +137,20 @@ jobs:
     # Docs: https://reportgenerator.io/
     - name: Generate coverage report (Unit)
       if: steps.files.outputs.UNIT_COVERAGE_FILE_EXISTS == 'true'
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.5.10 # Docs: https://github.com/marketplace/actions/reportgenerator
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.5.11 # Docs: https://github.com/marketplace/actions/reportgenerator
       with:
         reports: ${{ steps.files.outputs.UNIT_COVERAGE_FILE }}
         targetdir: coveragereport-u
         reporttypes: HtmlInline;MarkdownSummaryGithub
+
     - name: Generate coverage report (Acceptance)
       if: steps.files.outputs.ACCEPTANCE_COVERAGE_FILE_EXISTS == 'true'
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.5.10 # Docs: https://github.com/marketplace/actions/reportgenerator
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.5.11 # Docs: https://github.com/marketplace/actions/reportgenerator
       with:
         reports: ${{ steps.files.outputs.ACCEPTANCE_COVERAGE_FILE }}
         targetdir: coveragereport-a
         reporttypes: HtmlInline;MarkdownSummaryGithub
+
     - name: List report files
       run: |
         echo Listing files of unit-report...
@@ -153,12 +165,14 @@ jobs:
       with:
         name: CoverageReport-UnitTests # artifact name
         path: coveragereport-u # directory containing files to upload
+
     - name: Upload artifacts of coverage report (Acceptance)
       if: steps.files.outputs.ACCEPTANCE_COVERAGE_FILE_EXISTS == 'true' && success()
       uses: actions/upload-artifact@v7 # https://github.com/actions/upload-artifact
       with:
         name: CoverageReport-AcceptanceTests # artifact name
         path: coveragereport-a # directory containing files to upload
+
     - name: Publish coverage in job summary # only applicable if 'MarkdownSummaryGithub' or one of the other Markdown report types is generated
       if: steps.files.outputs.UNIT_COVERAGE_FILE_EXISTS == 'true' && success()
       run: |
@@ -207,18 +221,20 @@ jobs:
         cat $file_u >> $GITHUB_STEP_SUMMARY
         cat $file_a >> $GITHUB_STEP_SUMMARY
       shell: bash
-    - name: Codecov
+
+    - name: Codecov (unit flag)
       if: steps.files.outputs.UNIT_COVERAGE_FILE_EXISTS == 'true' && success()
-      uses: codecov/codecov-action@v6 # https://github.com/codecov/codecov-action
+      uses: codecov/codecov-action@v7 # https://github.com/codecov/codecov-action
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: ThreeMammals/Ocelot.Discovery.Consul
         files: ${{ steps.files.outputs.UNIT_COVERAGE_FILE }}
         flags: unit
         disable_search: true
-    - name: Codecov 2
+
+    - name: Codecov (accept flag)
       if: steps.files.outputs.ACCEPTANCE_COVERAGE_FILE_EXISTS == 'true' && success()
-      uses: codecov/codecov-action@v6 # https://github.com/codecov/codecov-action
+      uses: codecov/codecov-action@v7 # https://github.com/codecov/codecov-action
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: ThreeMammals/Ocelot.Discovery.Consul
@@ -235,6 +251,7 @@ jobs:
     steps:
       - name: .NET Version
         run: dotnet --version
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
@@ -242,6 +259,7 @@ jobs:
             8.0.x
             9.0.x
             10.0.x
+
       - name: .NET Info
         run: dotnet --info
 
