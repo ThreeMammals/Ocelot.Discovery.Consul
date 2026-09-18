@@ -42,7 +42,10 @@ jobs:
           --results-directory ./unit/TestResults --output Detailed --coverlet --coverlet-include "[Ocelot*]*"
 
     - name: Acceptance tests
-      run: dotnet test --no-restore --no-build ./acceptance/Ocelot.Discovery.Consul.Acceptance.csproj --collect:"XPlat Code Coverage" --framework net10.0
+      run: |
+        dotnet test --no-restore --no-build --framework net10.0 --project ./acceptance/Ocelot.Discovery.Consul.Acceptance.csproj \
+          --results-directory ./acceptance/TestResults --output Detailed --coverlet --coverlet-include "[Ocelot*]*"
+
     - name: Find files
       id: files
       run: |
