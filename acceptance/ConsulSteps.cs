@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Ocelot.Configuration;
 using Ocelot.Configuration.File;
 using Ocelot.DependencyInjection;
+using Ocelot.Infrastructure.Extensions;
 using Ocelot.Testing.Steps;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -12,7 +14,7 @@ public class ConsulSteps : DiscoverySteps
     public static readonly FileRoute[] NoRoutes = null;
 
     public FileConfiguration GivenDiscoveryConfiguration(FileRoute[] routes, int port,
-        string scheme = null, string host = null, string provider = null)
+        string scheme = null, string host = null, string provider = null, string loadBalancer = null)
     {
         routes ??= [];
         var c = GivenConfiguration(routes);
@@ -23,6 +25,8 @@ public class ConsulSteps : DiscoverySteps
             Port = port,
             Type = provider ?? nameof(Consul),
         };
+        if (loadBalancer.IsNotEmpty())
+            c.GlobalConfiguration.LoadBalancerOptions = new(loadBalancer);
         return c;
     }
 

@@ -1,6 +1,7 @@
 ﻿using Consul;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using Ocelot.Configuration;
@@ -11,8 +12,10 @@ using Ocelot.LoadBalancer.Balancers;
 using Ocelot.LoadBalancer.Creators;
 using Ocelot.LoadBalancer.Interfaces;
 using Ocelot.Logging;
+using Ocelot.Requester;
 using Ocelot.ServiceDiscovery.Providers;
 using Ocelot.Testing.LoadBalancer;
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
@@ -531,6 +534,115 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
         ThenServicesShouldHaveBeenCalledTimes(10, 10, 10, 10, 10); // distribution by RoundRobin algorithm, aka strict assertion
     }
 
+    [Fact]
+    [Trait("Bug", "2352")] // https://github.com/ThreeMammals/Ocelot/issues/2352
+    [Trait("PR", "2427")] // https://github.com/ThreeMammals/Ocelot/pull/2427
+    [Trait("Release", "25.0.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/25.0.2
+    public async Task ShouldRouteRequestWithChromiumClientHintHeaders()
+    {
+        var consulPort = PortFinder.GetRandomPort();
+        var ports = PortFinder.GetPorts(2);
+        var serviceUrls = ports.Select(DownstreamUrl).ToArray();
+        var configuration = GivenDiscoveryConfiguration(NoRoutes, consulPort, loadBalancer: nameof(RoundRobin));
+
+        GivenMultipleServiceInstancesAreRunning(serviceUrls);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenTheServicesAreRegisteredWithConsul(ports);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        GivenIAddAHeader("sec-ch-ua", "\"Microsoft Edge\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"");
+        GivenIAddAHeader("sec-ch-ua-mobile", "?0");
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently(Path(), 2));
+        ThenAllStatusCodesShouldBe(HttpStatusCode.OK);
+        ThenAllServicesShouldHaveBeenCalledTimes(2);
+        ThenServicesShouldHaveBeenCalledTimes(1, 1); // distribution by RoundRobin algorithm
+    }
+
+    [Fact]
+    [Trait("Bug", "2428")] // https://github.com/ThreeMammals/Ocelot/issues/2428
+    [Trait("PR", "2429")] // https://github.com/ThreeMammals/Ocelot/pull/2429
+    [Trait("Release", "25.0.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/25.0.2
+    public async Task ShouldForwardEachRequestToItsOwnDownstreamPath()
+    {
+        var consulPort = PortFinder.GetRandomPort();
+        var ports = PortFinder.GetPorts(2);
+        var serviceUrls = ports.Select(DownstreamUrl).ToArray();
+        var configuration = GivenDiscoveryConfiguration(NoRoutes, consulPort, loadBalancer: nameof(RoundRobin));
+        GivenMultipleServiceInstancesAreRunning(serviceUrls);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenTheServicesAreRegisteredWithConsul(ports);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsul);
+        await WhenIGetUrlOnTheApiGateway(Path("/first"));
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        ThenTheResponseHeaderIs(HeaderNames.Path, "/first");
+        await WhenIGetUrlOnTheApiGateway(Path("/second?id=2"));
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        ThenTheResponseHeaderIs(HeaderNames.Path, "/second?id=2");
+        await WhenIPostUrlOnTheApiGateway(Path("/orders?flag&q=a+b"), "{}", "application/json");
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        ThenTheResponseHeaderIs(HeaderNames.Path, "/orders?flag&q=a+b");
+        await WhenIDeleteUrlOnTheApiGateway(Path("/orders/7?force=true"));
+        ThenTheStatusCodeShouldBe(HttpStatusCode.OK);
+        ThenTheResponseHeaderIs(HeaderNames.Path, "/orders/7?force=true");
+        ThenAllServicesShouldHaveBeenCalledTimes(4);
+        ThenServicesShouldHaveBeenCalledTimes(2, 2); // distribution by RoundRobin algorithm
+    }
+
+    [Fact]
+    [Trait("Bug", "2428")] // https://github.com/ThreeMammals/Ocelot/issues/2428
+    [Trait("PR", "2429")] // https://github.com/ThreeMammals/Ocelot/pull/2429
+    [Trait("Release", "25.0.2")] // https://github.com/ThreeMammals/Ocelot/releases/tag/25.0.2
+    public async Task ShouldUseOneHttpHandlerForAllDownstreamPathsOfService()
+    {
+        var consulPort = PortFinder.GetRandomPort();
+        var ports = PortFinder.GetPorts(2);
+        var serviceUrls = ports.Select(DownstreamUrl).ToArray();
+        var configuration = GivenDiscoveryConfiguration(NoRoutes, consulPort, loadBalancer: nameof(RoundRobin));
+
+        var paths = Enumerable.Range(1, 10).Select(i => $"/users/{i}").ToArray();
+        var urls = paths.Select(p => Path(p)).ToArray();
+        GivenMultipleServiceInstancesAreRunning(serviceUrls);
+        GivenThereIsAFakeConsulServiceDiscoveryProvider(consulPort);
+        GivenTheServicesAreRegisteredWithConsul(ports);
+        GivenThereIsAConfiguration(configuration);
+        GivenOcelotIsRunning(WithConsulAndRequesterTesting);
+        await Task.WhenAll(
+            WhenIGetUrlOnTheApiGatewayConcurrently(urls.Length, urls)); // TODO As the first cold request, it sends 10 requests to the Consul discovery provider to return a service instance.
+        ThenAllStatusCodesShouldBe(HttpStatusCode.OK);
+        ThenAllServicesShouldHaveBeenCalledTimes(10);
+        ThenServicesShouldHaveBeenCalledTimes(5, 5); // distribution by RoundRobin algorithm
+        ThenEachResponsePathShouldBe(paths);
+        ThenOneHttpHandlerShouldBeCreated(10);
+
+        void WithConsulAndRequesterTesting(IServiceCollection services)
+        {
+            WithConsul(services);
+            services
+                .RemoveAll<IMessageInvokerPool>()
+                .AddSingleton<IMessageInvokerPool, CountingMessageInvokerPool>();
+        }
+        void ThenEachResponsePathShouldBe(string[] paths)
+        {
+            foreach (var (index, response) in Responses)
+            {
+                response.ShouldNotBeNull().Headers.GetValues(HeaderNames.Path).ShouldHaveSingleItem()
+                    .ShouldBe(paths[index], "Should forward the request to its own downstream path");
+            }
+        }
+        void ThenOneHttpHandlerShouldBeCreated(int totalRequests, [CallerMemberName] string serviceName = null)
+        {
+            var pool = OcelotServices.GetService<IMessageInvokerPool>() as CountingMessageInvokerPool;
+            pool.ShouldNotBeNull().CreatedHandlers.Keys.Count(route => route.ServiceName == serviceName)
+                .ShouldBe(1, "Should use one HTTP handler for all downstream paths of the service");
+            pool.Counter.ShouldBe(totalRequests);
+            pool.AllHandlers.ShouldHaveSingleItem();
+            var expected = pool.CreatedHandlers.Values.Single();
+            pool.AllHandlers.ShouldAllBe(h => Equals(h, expected));
+        }
+    }
+
     private Action<IServiceCollection> WithLbAnalyzer(string loadBalancer) => loadBalancer switch
     {
         nameof(LeastConnection) => WithLbAnalyzer<LeastConnection, LeastConnectionCreator>,
@@ -633,7 +745,13 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
         _counterConsul = 0;
     }
 
-    private void GivenTheServicesAreRegisteredWithConsul(params ServiceEntry[] serviceEntries) => _consulServices.AddRange(serviceEntries);
+    private void GivenTheServicesAreRegisteredWithConsul(int[] ports, [CallerMemberName] string serviceName = null)
+    {
+        var services = ports.Select(port => GivenServiceEntry(port, serviceName: serviceName));
+        _consulServices.AddRange(services);
+    }
+    private void GivenTheServicesAreRegisteredWithConsul(params ServiceEntry[] serviceEntries)
+        => _consulServices.AddRange(serviceEntries);
     private void GivenTheServiceNodesAreRegisteredWithConsul(params Node[] nodes) => _consulNodes.AddRange(nodes);
 
     [GeneratedRegex("/v1/health/service/(?<ServiceName>[^/]+)", RegexOptions.Singleline, RegexGlobal.DefaultMatchTimeoutMilliseconds)]
@@ -641,6 +759,8 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
 
     private void GivenThereIsAFakeConsulServiceDiscoveryProvider(string url)
         => _consulHandler.GivenThereIsAServiceRunningOn(url, MapServiceName);
+    private void GivenThereIsAFakeConsulServiceDiscoveryProvider(int consulPort)
+        => GivenThereIsAFakeConsulServiceDiscoveryProvider(DownstreamUrl(consulPort));
     private async Task MapServiceName(HttpContext context)
     {
         if (context.Request.Headers.TryGetValue("X-Consul-Token", out var values))
@@ -681,4 +801,34 @@ public sealed partial class ServiceDiscoveryTests : ConsulSteps
 
     private void ThenConsulShouldHaveBeenCalledTimes(int expected) => _counterConsul.ShouldBe(expected);
     private void ThenConsulNodesShouldHaveBeenCalledTimes(int expected) => _counterNodes.ShouldBe(expected);
+
+    /// <summary>
+    /// Dynamic Routing path.
+    /// </summary>
+    private static string Path(string path = "/", [CallerMemberName] string serviceName = null)
+        => $"/{serviceName}/{path.TrimStart('/')}"; // first segment is always Service Name
+}
+
+public class CountingMessageInvokerPool : MessageInvokerPool, IMessageInvokerPool
+{
+    public CountingMessageInvokerPool(IDelegatingHandlerFactory handlerFactory, IOcelotLoggerFactory loggerFactory)
+        : base(handlerFactory, loggerFactory) { }
+
+    public volatile int Counter;
+    public override HttpMessageInvoker Get(DownstreamRoute downstreamRoute)
+    {
+        var invoker = base.Get(downstreamRoute);
+        _ = Interlocked.Increment(ref Counter);
+        return invoker;
+    }
+
+    public readonly ConcurrentDictionary<DownstreamRoute, SocketsHttpHandler> CreatedHandlers = [];
+    public readonly ConcurrentBag<SocketsHttpHandler> AllHandlers = [];
+    protected override SocketsHttpHandler CreateHandler(DownstreamRoute route)
+    {
+        var handler = base.CreateHandler(route);
+        CreatedHandlers[route] = handler;
+        AllHandlers.Add(handler);
+        return handler;
+    }
 }
