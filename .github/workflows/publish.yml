@@ -92,13 +92,13 @@ jobs:
 
     - name: Install tools
       run: |
-        # .NET tools aka .config/dotnet-tools.json
-        echo Installing .NET tools aka dotnet-tools.json ...
+        echo "::group::Installing .NET tools aka dotnet-tools.json..."
         dotnet tool restore
-        # Install XML tools
-        echo Installing XML tools ...
-        sudo apt update
-        sudo apt install libxml2-utils # aka xmllint read-command. xmlstarlet is not required
+        echo "::endgroup::"
+        echo "::group::Installing XML tools..."
+        sudo apt-get update
+        sudo apt-get install libxml2-utils # aka xmllint read-command. xmlstarlet is not required
+        echo "::endgroup::"
 
     # Extract actual coverage % from the Coverlet XML-file
     - name: Read coverage
@@ -137,7 +137,7 @@ jobs:
     # Docs: https://reportgenerator.io/
     - name: Generate coverage report (Unit)
       if: steps.files.outputs.UNIT_COVERAGE_FILE_EXISTS == 'true'
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.5.11 # Docs: https://github.com/marketplace/actions/reportgenerator
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.6.0 # Docs: https://github.com/marketplace/actions/reportgenerator
       with:
         reports: ${{ steps.files.outputs.UNIT_COVERAGE_FILE }}
         targetdir: coveragereport-u
@@ -145,7 +145,7 @@ jobs:
 
     - name: Generate coverage report (Acceptance)
       if: steps.files.outputs.ACCEPTANCE_COVERAGE_FILE_EXISTS == 'true'
-      uses: danielpalme/ReportGenerator-GitHub-Action@5.5.11 # Docs: https://github.com/marketplace/actions/reportgenerator
+      uses: danielpalme/ReportGenerator-GitHub-Action@5.6.0 # Docs: https://github.com/marketplace/actions/reportgenerator
       with:
         reports: ${{ steps.files.outputs.ACCEPTANCE_COVERAGE_FILE }}
         targetdir: coveragereport-a
@@ -290,4 +290,4 @@ jobs:
         run: dotnet nuget push ./packages/*.nupkg --source "https://nuget.pkg.github.com/ThreeMammals/index.json" --api-key ${{ secrets.GITHUB_TOKEN }} --skip-duplicate
 
       - name: Publish to NuGet
-        run: dotnet nuget push ./packages/*.nupkg --source "https://api.nuget.org/v3/index.json" --api-key ${{ secrets.NUGET_API_KEY_2025 }} --skip-duplicate
+        run: dotnet nuget push ./packages/*.nupkg --source "https://api.nuget.org/v3/index.json" --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
