@@ -6,7 +6,7 @@ on:
       - "v*.*.*"
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04 # ubuntu-latest
     permissions:
       packages: write
       contents: write
